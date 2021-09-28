@@ -25,7 +25,15 @@ class Decompiler:
         Code should be the full decompilation of the function the address is within. If not in a function, None is
         also acceptable.
         """
-        return self.server.decompile(addr)
+        vmmap = get_process_maps()
+        base_address = min([x.page_start for x in vmmap if x.path == get_filepath()])
+        checksec_status = checksec(get_filepath())
+        pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
+        corrected_addr = addr
+        if pie:
+            corrected_addr -= base_address
+
+        return self.server.decompile(corrected_addr)
 
     def get_stack_vars(self, addr, ) -> typing.Dict:
         """
@@ -113,7 +121,7 @@ class DecompilerCTXPane:
 
     def _decompile_cur_pc(self, pc):
         try:
-            resp = self.decompiler.decompile(pc - 0x0000555555554000)
+            resp = self.decompiler.decompile(pc)
         except Exception as e:
             gef_print("[!] DECOMPILER ERROR")
             gef_print(e)

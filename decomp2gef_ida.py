@@ -86,7 +86,6 @@ def decompile(addr: int):
     # get the function
     ida_func = ida_funcs.get_func(addr)
     if not ida_func:
-        print("FAILED TO GET FUNCTION")
         return resp
 
     func_addr = ida_func.start_ea
@@ -96,37 +95,24 @@ def decompile(addr: int):
     try:
         cfunc = ida_hexrays.decompile(func_addr)
     except Exception as e:
-        print("FAILED TO GET DECOMPILATION")
         return resp
 
     # locate decompilation line
     item = cfunc.body.find_closest_addr(addr)
     y_holder = idaapi.int_pointer()
     if not cfunc.find_item_coords(item, None, y_holder):
-        print("FAILED TO GET LINE")
-        return resp
+        # if idaapi failes, try a dirty search!
+        up = cfunc.body.find_closest_addr(addr - 0x10)
+        if not cfunc.find_item_coords(up, None, y_holder):
+            down = cfunc.body.find_closest_addr(addr + 0x10)
+            if not cfunc.find_item_coords(down, None, y_holder):
+                return resp
+
     cur_line_num = y_holder.value()
 
     # decode ida lines
     enc_lines = cfunc.get_pseudocode()
     decomp_lines = [idaapi.tag_remove(l.line) for l in enc_lines]
-
-    #enc_addr_decomp = cfunc.eamap[addr][0].print1(None)
-    #ascii_str = ida_lines.tag_remove(enc_addr_decomp)
-    #ida_pro.str2user(enc_addr_decomp)
-
-    #print(f"[+] Got Decompilation: {decomp[:15]}")
-    #print(f"[+] Got Decomp Lines: {decomp_lines[0]}")
-    #print(f"[+] Got Current line: {ascii_str}")
-    #print(f"[+] Starting Search...")
-
-    #for cur_line_num in range(len(decomp_lines)):
-    #    if ascii_str in decomp_lines[cur_line_num]:
-    #        print(f"[+] Break {cur_line_num}...")
-    #        break
-    #else:
-    #    print("FAILED TO FIND DECOMP LINE")
-    #    return resp
 
     return {
         "code": decomp_lines,
