@@ -21,8 +21,8 @@ gef➤  decompiler connect
 Now just use GEF like normal :)
 
 ## Features
-[x] decompilation view
-[] Break on decompiler function symbols
-[] Resolve stack variable symbols in a function
-[] Decompilation caching
-[] Highlight current gdb line
+- [x] decompilation view
+- [] Break on decompiler function symbols
+- [] Resolve stack variable symbols in a function
+- [] Decompilation caching
+- [] Highlight current gdb line
