@@ -67,18 +67,6 @@ def execute_ui(func):
     return execute_sync(func, idaapi.MFF_FAST)
 
 
-#
-# RPCXML Server Code
-#
-
-HOST, PORT = "0.0.0.0", 3662
-DEBUG = True
-
-
-class RequestHandler(SimpleXMLRPCRequestHandler):
-    rpc_paths = ("/RPC2",)
-
-
 @execute_read
 def decompile(addr: int):
     resp = {"code": None}
@@ -121,6 +109,22 @@ def decompile(addr: int):
     }
 
 
+#
+# XMLRPC Server Code
+#
+
+HOST, PORT = "0.0.0.0", 3662
+DEBUG = True
+
+
+class RequestHandler(SimpleXMLRPCRequestHandler):
+    rpc_paths = ("/RPC2",)
+
+
+def ping():
+    return True
+
+
 def start_xmlrpc_server():
     """
     Initialize the XMLRPC thread.
@@ -132,6 +136,7 @@ def start_xmlrpc_server():
                                 allow_none=True)
     server.register_introspection_functions()
     server.register_function(decompile)
+    server.register_function(ping)
     print("[+] Registered decompilation!")
     while True:
         server.handle_request()

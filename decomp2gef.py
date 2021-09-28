@@ -1,5 +1,24 @@
 import typing
 import xmlrpc.client
+import functools
+
+
+#
+# Decorators
+#
+
+# decompiler decorators
+def only_if_online(f):
+    """Decorator wrapper to check if Decompiler is online."""
+
+    @functools.wraps(f)
+    def wrapper(self, *args, **kwargs):
+        if self.connected():
+            return f(self, *args, **kwargs)
+        else:
+            warn("No decompiler active!")
+
+    return wrapper
 
 
 #
@@ -13,6 +32,47 @@ class Decompiler:
         self.port = port
         self.server = None
 
+    #
+    # Utils
+    #
+
+
+    #
+    # Server Operations
+    #
+
+    def connected(self):
+        return True if self.server else False
+
+    def connect(self, name="decompiler", host="127.0.0.1", port=3662) -> bool:
+        """
+        Connects to the remote decompiler.
+        """
+        self.name = name
+        self.host = host
+        self.port = port
+
+        try:
+            self.server = xmlrpc.client.ServerProxy("http://{:s}:{:d}".format(host, port))
+            self.server.ping()
+        except (ConnectionRefusedError, AttributeError) as e:
+            gef_print("[!] Failed to connect")
+            self.server = None
+            return False
+
+        gef_print("[+] Connected!")
+        return True
+
+    @only_if_online
+    def disconnect(self):
+        self.server.disconnect()
+        self.server = None
+
+    #
+    # Decompilation Operations
+    #
+
+    @only_if_online
     def decompile(self, addr) -> typing.Dict:
         """
         Decompiles an address that may be in a function boundary. Returns a dict like the following:
@@ -35,6 +95,7 @@ class Decompiler:
 
         return self.server.decompile(corrected_addr)
 
+    @only_if_online
     def get_stack_vars(self, addr, ) -> typing.Dict:
         """
         Gets all the stack vars associated with the function addr is in. If addr is not in a function, will return None
@@ -56,6 +117,7 @@ class Decompiler:
         """
         return {}
 
+    @only_if_online
     def get_structs(self) -> typing.List[typing.Dict]:
         """
         Gets all the structs defined by the decompiler or user. Returns a dict like the following:
@@ -78,6 +140,7 @@ class Decompiler:
         """
         return {}
 
+    @only_if_online
     def set_comment(self, cmt, addr, decompilation=False) -> bool:
         """
         Sets a comment in either disassembly or decompilation based on the address.
@@ -85,22 +148,6 @@ class Decompiler:
         """
         return False
 
-    def connect(self, name="decompiler", host="127.0.0.1", port=3662) -> bool:
-        """
-        Connects to the remote decompiler.
-        """
-        self.name = name
-        self.host = host
-        self.port = port
-
-        try:
-            self.server = xmlrpc.client.ServerProxy("http://{:s}:{:d}".format(host, port))
-        except ConnectionRefusedError:
-            gef_print("[!] Failed to connect")
-            return False
-
-        gef_print("[+] Connected!")
-        return True
 
 
 _decompiler_ = Decompiler()
@@ -141,6 +188,9 @@ class DecompilerCTXPane:
         """
         Display the current decompilation, with an arrow next to the current line.
         """
+        if not self.decompiler.connected():
+            return
+
         if not self.ready_to_display:
             gef_print("Unable to decompile function")
             return
@@ -175,6 +225,9 @@ class DecompilerCTXPane:
         """
         Special note: this function is always called before display_pane
         """
+        if not self.decompiler.connected():
+            return None
+
         self.ready_to_display = self._decompile_cur_pc(current_arch.pc)
 
         if self.ready_to_display:
@@ -198,7 +251,6 @@ class DecompilerCommand(GenericCommand):
     _cmdline_ = "decompiler"
     _syntax_ = "{:s} [connect | disconnect]".format(_cmdline_)
 
-    @only_if_gdb_running
     def do_invoke(self, argv):
         cmd = argv[0]
         if cmd == "connect":
