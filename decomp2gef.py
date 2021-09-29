@@ -33,11 +33,6 @@ class Decompiler:
         self.server = None
 
     #
-    # Utils
-    #
-
-
-    #
     # Server Operations
     #
 
@@ -72,6 +67,16 @@ class Decompiler:
     # Decompilation Operations
     #
 
+    def _rebase_addr(self, addr):
+        vmmap = get_process_maps()
+        base_address = min([x.page_start for x in vmmap if x.path == get_filepath()])
+        checksec_status = checksec(get_filepath())
+        pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
+        corrected_addr = addr
+        if pie:
+            corrected_addr -= base_address
+        return corrected_addr
+
     @only_if_online
     def decompile(self, addr) -> typing.Dict:
         """
@@ -85,18 +90,10 @@ class Decompiler:
         Code should be the full decompilation of the function the address is within. If not in a function, None is
         also acceptable.
         """
-        vmmap = get_process_maps()
-        base_address = min([x.page_start for x in vmmap if x.path == get_filepath()])
-        checksec_status = checksec(get_filepath())
-        pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
-        corrected_addr = addr
-        if pie:
-            corrected_addr -= base_address
-
-        return self.server.decompile(corrected_addr)
+        return self.server.decompile(self._rebase_addr(addr))
 
     @only_if_online
-    def get_stack_vars(self, addr, ) -> typing.Dict:
+    def get_stack_vars(self, addr) -> typing.Dict:
         """
         Gets all the stack vars associated with the function addr is in. If addr is not in a function, will return None
         for the function addr. Returns a dict like the following:
@@ -115,7 +112,7 @@ class Decompiler:
 
         All offsets will be negative offsets of the base pointer.
         """
-        return {}
+        return self.server.get_stack_vars(self._rebase_addr(addr))
 
     @only_if_online
     def get_structs(self) -> typing.List[typing.Dict]:
@@ -138,7 +135,7 @@ class Decompiler:
             ...
         ]
         """
-        return {}
+        return self.server.get_structs()
 
     @only_if_online
     def set_comment(self, cmt, addr, decompilation=False) -> bool:
@@ -146,8 +143,7 @@ class Decompiler:
         Sets a comment in either disassembly or decompilation based on the address.
         Returns whether it was successful or not.
         """
-        return False
-
+        return self.server.set_comment(cmt, self._rebase_addr(addr), decompilation)
 
 
 _decompiler_ = Decompiler()

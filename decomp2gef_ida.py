@@ -9,13 +9,13 @@ import functools
 import ida_hexrays, ida_funcs, idc, ida_pro, ida_lines, idaapi
 
 #
-#   Wrappers for IDA Main thread r/w operations
+# Wrappers for IDA Main thread r/w operations
 #
-
+#
 # a special note about these functions:
-# Any operation that needs to do some type of write to the ida db (idb), needs to be in the main thread due to
-# some ida constraints. Sometimes reads also need to be in the main thread. To make things efficient, most heavy
-# things are done in the controller and just setters and getters are done here.
+# Any operation that needs to do some type of write to the ida db (idb), needs to be in the main
+# thread due to some ida constraints. Sometimes reads also need to be in the main thread.
+#
 
 
 def is_mainthread():
@@ -66,6 +66,10 @@ def execute_write(func):
 def execute_ui(func):
     return execute_sync(func, idaapi.MFF_FAST)
 
+
+#
+# Decompilation API
+#
 
 @execute_read
 def decompile(addr: int):
@@ -130,10 +134,12 @@ def start_xmlrpc_server():
     Initialize the XMLRPC thread.
     """
     print("[+] Starting XMLRPC server: {}:{}".format(HOST, PORT))
-    server = SimpleXMLRPCServer((HOST, PORT),
-                                requestHandler=RequestHandler,
-                                logRequests=False,
-                                allow_none=True)
+    server = SimpleXMLRPCServer(
+        (HOST, PORT),
+        requestHandler=RequestHandler,
+        logRequests=False,
+        allow_none=True
+    )
     server.register_introspection_functions()
     server.register_function(decompile)
     server.register_function(ping)
