@@ -453,3 +453,28 @@ class DecompilerBreak(gdb.Command):
 
 
 DecompilerBreak()
+
+#
+# Dirty overrides
+#
+
+@lru_cache(maxsize=512)
+def gdb_get_location_from_symbol(address):
+    """Retrieve the location of the `address` argument from the symbol table.
+    Return a tuple with the name and offset if found, None otherwise."""
+    # this is horrible, ugly hack and shitty perf...
+    # find a *clean* way to get gdb.Location from an address
+    name = None
+    sym = gdb.execute("info symbol {:#x}".format(address), to_string=True)
+    if sym.startswith("No symbol matches"):
+        # --- start patch --- #
+        sym_obj = _decomp_sym_tab_.lookup_symbol_from_addr(_decompiler_.rebase_addr(address))
+        return sym_obj
+        # --- end patch --- #
+
+    i = sym.find(" in section ")
+    sym = sym[:i].split()
+    name, offset = sym[0], 0
+    if len(sym) == 3 and sym[2].isdigit():
+        offset = int(sym[2])
+    return name, offset
