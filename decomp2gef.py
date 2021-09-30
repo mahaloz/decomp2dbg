@@ -72,12 +72,12 @@ class SymbolMap:
 
         return addr
 
-    def lookup_symbol_from_addr(self, pos: int):
-        element = self._get_element(pos)
+    def lookup_symbol_from_addr(self, addr: int):
+        element = self._get_element(addr)
         if element is None:
             return None
 
-        offset = pos - element.start
+        offset = addr - element.start
         return element.sym, offset
 
     def _get_element(self, pos: int) -> typing.Optional[SymbolMapElement]:
@@ -91,6 +91,8 @@ class SymbolMap:
             return element
         return None
 
+
+_decomp_sym_tab_ = SymbolMap()
 
 #
 # Decorators
@@ -248,14 +250,18 @@ class Decompiler:
     # Decompiler Utils
     #
 
-    def rebase_addr(self, addr):
+    def rebase_addr(self, addr, up=False):
         vmmap = get_process_maps()
         base_address = min([x.page_start for x in vmmap if x.path == get_filepath()])
         checksec_status = checksec(get_filepath())
         pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
         corrected_addr = addr
         if pie:
-            corrected_addr -= base_address
+            if up:
+                corrected_addr += base_address
+            else:
+                corrected_addr -= base_address
+
         return corrected_addr
 
     def lookup_symbol_from_name(self, name: str) -> int:
@@ -370,9 +376,60 @@ class DecompilerCommand(GenericCommand):
 
     def do_invoke(self, argv):
         cmd = argv[0]
-        if cmd == "connect":
-            _decompiler_.connect("ida")
+        args = argv[1:]
+        self._handle_cmd(cmd, args)
 
+    #
+    # Decompiler command handlers
+    #
+
+    def _handle_cmd(self, cmd, args):
+        handler_str = "_handle_{}".format(cmd)
+        if hasattr(self, handler_str):
+            handler = getattr(self, handler_str)
+            handler(args)
+        else:
+            self._handler_failed("command does not exist")
+
+    def _handle_connect(self, args):
+        if len(args) != 1:
+            self._handler_failed("not enough args")
+            return
+
+        _decompiler_.connect(name=args[0])
+
+    def _handle_global_info(self, args):
+        if len(args) != 1:
+            self._handler_failed("not enough args")
+
+        op = args[0]
+
+        # import global info
+        if op == "import":
+            resp = _decompiler_.global_info()
+            funcs_info = resp['function_headers']
+            import_count = 0
+            for func_addr in funcs_info:
+                func_i = funcs_info[func_addr]
+                _decomp_sym_tab_.add_mapping(
+                    func_i["base_addr"],
+                    func_i["size"],
+                    func_i["name"]
+                )
+                import_count += 1
+
+            gef_print("[+] Loaded {:d} function symbols".format(import_count))
+            return
+
+        if op == "status":
+            gef_print("======= Decompiler Symbol Info =======")
+            gef_print("Imported {:d} symbols".format(len(_decomp_sym_tab_._sym_to_addr_tbl)))
+            for sym, addr in _decomp_sym_tab_._sym_to_addr_tbl.items():
+                gef_print("{:s}@0x{:x}".format(sym, addr))
+            gef_print("======= END Decompiler Symbol Info =======")
+
+    def _handler_failed(self, error):
+        gef_print("[!] Failed to handle decompiler command: {}.".format(error))
 
 register_external_command(DecompilerCommand())
 
@@ -387,7 +444,11 @@ class DecompilerBreak(gdb.Command):
         super(DecompilerBreak, self).__init__("break", gdb.COMMAND_USER)
 
     def invoke(self, arg, from_tty):
-        print(f"GOT ARG: {arg}")
+        addr = _decomp_sym_tab_.lookup_addr_from_symbol(arg)
+        if addr:
+            arg = "*0x{:x}".format(_decompiler_.rebase_addr(addr, up=True))
+
+        print(f"[+] Breaking based on decompiler symbol: {arg}")
         gdb.Breakpoint(arg)
 
 

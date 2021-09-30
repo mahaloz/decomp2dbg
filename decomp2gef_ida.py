@@ -168,6 +168,7 @@ def start_xmlrpc_server():
     )
     server.register_introspection_functions()
     server.register_function(decompile)
+    server.register_function(global_info)
     server.register_function(ping)
     print("[+] Registered decompilation!")
     while True:
