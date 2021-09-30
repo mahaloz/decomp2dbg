@@ -38,8 +38,8 @@ one of the best gdb upgrades and makes for a perfect place to first implement th
 it should be easily transferable to any debugger supporting python3.
 
 ## Features
-- [X] decompilation view
-- [ ] Break on decompiler function symbols
+- [X] Decompilation view
+- [X] Break on decompiler function symbols
 - [ ] Resolve stack variable symbols in a function
 - [ ] Decompilation caching
 - [ ] Highlight current gdb line
