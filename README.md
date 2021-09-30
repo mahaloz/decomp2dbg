@@ -20,6 +20,13 @@ gef➤  decompiler connect
 
 Now just use GEF like normal :)
 
+## Decompiler Commands
+- `decompiler global_info import`:
+    - imports global info like symbols, structs, and enums. Use this for function names as well.
+    
+- `decompiler global_info status`:
+    - shows you status info of imported symbols
+
 ## Abstract
 The reverse engineering process often involves a decompiler, making it fundamental to
 support in a debugger, since context switching knowledge between the two is hard. Decompilers
