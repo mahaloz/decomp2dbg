@@ -20,6 +20,23 @@ gef➤  decompiler connect
 
 Now just use GEF like normal :)
 
+## Abstract
+The reverse engineering process often involves a decompiler, making it fundamental to
+support in a debugger, since context switching knowledge between the two is hard. Decompilers
+have a lot in common. During the reversing process, there are reverse engineering artifacts (REA).
+These REAs are common across all decompilers:
+- stack variables
+- global variables
+- structs
+- enums
+- function headers (name and prototype)
+- comments
+
+Knowledge of REAs can be used to lots of things, like [sync REAs](https://github.com/angr/binsync) or
+create a common interface for a debugger to display decompilation information. GEF is currently
+one of the best gdb upgrades and makes for a perfect place to first implement this idea. In the future,
+it should be easily transferable to any debugger supporting python3.
+
 ## Features
 - [X] decompilation view
 - [ ] Break on decompiler function symbols

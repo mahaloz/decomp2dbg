@@ -6,7 +6,7 @@ from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 import threading
 import functools
 
-import ida_hexrays, ida_funcs, idc, ida_pro, ida_lines, idaapi
+import ida_hexrays, ida_funcs, idc, ida_pro, ida_lines, idaapi, idautils
 
 #
 # Wrappers for IDA Main thread r/w operations
@@ -70,6 +70,32 @@ def execute_ui(func):
 #
 # Decompilation API
 #
+
+def _get_all_func_info():
+    resp = {"function_headers": {}}
+    for f_addr in idautils.Functions():
+        if not ((idc.get_func_flags(f_addr) & idc.FUNC_LIB) == idc.FUNC_LIB):
+            func_name = ida_funcs.get_func_name(f_addr)
+            if func_name.startswith("."):
+                continue
+
+            func_size = ida_funcs.get_func(f_addr).size()
+            resp["function_headers"][func_name] = {
+                "name": func_name,
+                "base_addr": f_addr,
+                "size": func_size
+            }
+
+    return resp
+
+
+@execute_read
+def global_info():
+    resp = {}
+    # function names, addrs, sizes
+    resp.update(_get_all_func_info())
+    return resp
+
 
 @execute_read
 def decompile(addr: int):
