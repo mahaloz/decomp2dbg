@@ -470,6 +470,7 @@ class DecompilerCommand(GenericCommand):
                     continue
                 os.system(f"{objcopy} --remove-section={section_name} {fname}.debug 2>/dev/null")
             cache["fname"] = fname + ".debug"
+            gef_print(fname)
             cache["data"] = open(cache["fname"], "rb").read()
             return cache["fname"]
 
