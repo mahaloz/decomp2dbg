@@ -32,7 +32,7 @@ class SymbolMap:
 
     __slots__ = ('_symmap', '_sym_to_addr_tbl')
 
-    DUPLICATION_CHECK = True
+    DUPLICATION_CHECK = False
 
     def __init__(self):
         self._symmap = sortedcontainers.SortedDict()
@@ -408,7 +408,7 @@ class DecompilerCommand(GenericCommand):
         if op == "import":
             resp = _decompiler_.global_info()
             funcs_info = resp['function_headers']
-            import_count = 0
+            funcs_to_add = []
             for func_addr in funcs_info:
                 func_i = funcs_info[func_addr]
                 _decomp_sym_tab_.add_mapping(
@@ -416,9 +416,9 @@ class DecompilerCommand(GenericCommand):
                     func_i["size"],
                     func_i["name"]
                 )
-                import_count += 1
+                funcs_to_add.append((func_i["name"],  func_i["base_addr"], None))
 
-            gef_print("[+] Loaded {:d} function symbols".format(import_count))
+            self.add_ida_symbol(funcs_to_add)
             return
 
         if op == "status":
@@ -431,28 +431,99 @@ class DecompilerCommand(GenericCommand):
     def _handler_failed(self, error):
         gef_print("[!] Failed to handle decompiler command: {}.".format(error))
 
+    #
+    # Decompiler debug info setters
+    #
+
+    def add_ida_symbol(self, function_info):
+        try:
+            gcc = which("gcc")
+            objcopy = which("objcopy")
+        except FileNotFoundError as e:
+            err("{}".format(e))
+            return
+
+        cache = {}
+
+        def create_blank_elf(text_base):
+            if cache:
+                open(cache["fname"], "wb").write(cache["data"])
+                return cache["fname"]
+            # create light ELF
+            fd, fname = tempfile.mkstemp(dir="/tmp", suffix=".c")
+            os.fdopen(fd, "w").write("int main() {}")
+            os.system(f"{gcc} {fname} -no-pie -o {fname}.debug")
+            os.unlink(f"{fname}")
+            # delete unneeded section for faster
+            os.system(f"{objcopy} --only-keep-debug {fname}.debug")
+            os.system(f"{objcopy} --strip-all {fname}.debug")
+            elf = get_elf_headers(f"{fname}.debug")
+            for s in elf.shdrs:
+                section_name = s.sh_name
+                if section_name == ".text":  # .text is needed, don't remove
+                    continue
+                if section_name == ".interp":  # broken if removed
+                    continue
+                if section_name == ".rela.dyn":  # cannot removed
+                    continue
+                if section_name == ".dynamic":  # cannot removed
+                    continue
+                os.system(f"{objcopy} --remove-section={section_name} {fname}.debug 2>/dev/null")
+            cache["fname"] = fname + ".debug"
+            cache["data"] = open(cache["fname"], "rb").read()
+            return cache["fname"]
+
+        def apply_symbol(fname, cmd_string_arr, text_base):
+            cmd_string = ' '.join(cmd_string_arr)
+            os.system(f"{objcopy} {cmd_string} {fname}")
+            gdb.execute(f"add-symbol-file {fname} {text_base:#x}", to_string=True)
+            os.unlink(fname)
+            return
+
+        info("{:d} entries will be added".format(len(function_info)))
+
+        vmmap = get_process_maps()
+        text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
+
+        cmd_string_arr = []
+        fname = create_blank_elf(text_base)
+        for i, (fn, fa, typ) in enumerate(function_info):
+            # debug print
+            if i > 1 and i % 10000 == 0:
+                info("{:d} entries were processed".format(i))
+
+            if typ in ["T", "t", "W", None]:
+                type_flag = "function"
+            else:
+                type_flag = "object"
+            if typ and typ in "abcdefghijklmnopqrstuvwxyz":
+                global_flag = "local"
+            else:
+                global_flag = "global"
+
+            if fa > text_base:
+                cmd_string_arr.append(
+                    f"--add-symbol '{fn}'={fa:#x},{global_flag},{type_flag}")  # lower address needs not relative, use absolute
+            else:
+                relative_addr = fa #- text_base
+                cmd_string_arr.append(
+                    f"--add-symbol '{fn}'=.text:{relative_addr:#x},{global_flag},{type_flag}")  # higher address needs relative
+
+            if i > 1 and i % 1000 == 0:
+                # too long, so let's commit
+                apply_symbol(fname, cmd_string_arr, text_base)
+                # re-init
+                fname = create_blank_elf(text_base)
+                cmd_string_arr = []
+
+        # commit remain
+        if cmd_string_arr:
+            apply_symbol(fname, cmd_string_arr, text_base)
+
+        info("{:d} entries were processed".format(i + 1))
+        return
+
 register_external_command(DecompilerCommand())
-
-
-#
-# Default GDB overriding for symbol usage
-#
-
-class DecompilerBreak(gdb.Command):
-
-    def __init__(self):
-        super(DecompilerBreak, self).__init__("break", gdb.COMMAND_USER)
-
-    def invoke(self, arg, from_tty):
-        addr = _decomp_sym_tab_.lookup_addr_from_symbol(arg)
-        if addr:
-            arg = "*0x{:x}".format(_decompiler_.rebase_addr(addr, up=True))
-
-        print(f"[+] Breaking based on decompiler symbol: {arg}")
-        gdb.Breakpoint(arg)
-
-
-DecompilerBreak()
 
 #
 # Dirty overrides
