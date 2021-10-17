@@ -46,9 +46,6 @@ gdb after just 2 steps!
 - [ ] Auto-syncing stack variable names
 - [ ] Auto-syncing structs
 
-Here is a demo of the current features. Shown is the decompilation view, native symbol support
-in gdb, and the altering of symbols as a user changes them in IDA:
-
 ## Abstract
 The reverse engineering process often involves a decompiler making it fundamental to
 support in a debugger since context switching knowledge between the two is hard. Decompilers
