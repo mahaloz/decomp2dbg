@@ -76,7 +76,10 @@ def _get_all_func_info():
     for f_addr in idautils.Functions():
         if not ((idc.get_func_flags(f_addr) & idc.FUNC_LIB) == idc.FUNC_LIB):
             func_name = ida_funcs.get_func_name(f_addr)
-            if func_name.startswith("."):
+            if not isinstance(func_name, str):
+                continue
+
+            if func_name.startswith(".") or "@" in func_name:
                 continue
 
             func_size = ida_funcs.get_func(f_addr).size()

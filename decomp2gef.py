@@ -1,14 +1,62 @@
+import tempfile
+import textwrap
 import typing
 import xmlrpc.client
 import functools
 import sortedcontainers
+import struct
+import os
+
 
 #
-# Helper Classes
+# Helper Functions
 #
 
+def rebase_addr(addr, up=False):
+    """
+    Rebases an address to be either in the domain of the base of the binary in GDB VMMAP or
+    to be just an offset.
+
+    up -> make an offset to a absolute address
+    down -> make an absolute address to an offset
+    """
+    vmmap = get_process_maps()
+    base_address = min([x.page_start for x in vmmap if x.path == get_filepath()])
+    checksec_status = checksec(get_filepath())
+    pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
+    corrected_addr = addr
+    if pie:
+        if up:
+            corrected_addr += base_address
+        else:
+            corrected_addr -= base_address
+
+    return corrected_addr
+
+
+def only_if_decompiler_connected(f):
+    """
+    Decorator wrapper to check if Decompiler is online. The _decompiler_ should exist in the
+    global namespace before any instance of this is called, which is assured in this file.
+    """
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        if _decompiler_ and _decompiler_.connected():
+            return f(*args, **kwargs)
+
+    return wrapper
+
+#
+# Symbol Mapping
+#
 
 class SymbolMapElement:
+    """
+    An element in the symbol map. Used to support range-keyed dicts. Imagine something like:
+    d[range(0x10,0x20)] = "thing"
+
+    You would be able to access thing through accessing any index between 0x10 and 0x20.
+    """
 
     __slots__ = ('start', 'length', 'sym')
 
@@ -30,13 +78,25 @@ class SymbolMap:
     be able to lookup addresses in the middle of the range fast
     """
 
-    __slots__ = ('_symmap', '_sym_to_addr_tbl')
+    __slots__ = ('_symmap',
+                 '_sym_to_addr_tbl',
+                 '_elf_cache',
+                 '_objcopy',
+                 '_gcc')
 
     DUPLICATION_CHECK = False
 
     def __init__(self):
         self._symmap = sortedcontainers.SortedDict()
         self._sym_to_addr_tbl = {}
+
+        self._elf_cache = {}
+        self._objcopy = None
+        self._gcc = None
+
+    #
+    # Public API for mapping
+    #
 
     def items(self):
         return self._symmap.items()
@@ -91,23 +151,194 @@ class SymbolMap:
             return element
         return None
 
+    #
+    # Native Symbol Support (Linux Only)
+    # Inspired by Bata24
+    #
+
+    def add_native_symbols(self, sym_info_list):
+        """
+        Adds a list of symbols to gdb's internal symbol listing. Only function and global symbols are supported.
+        Symbol info looks like:
+        (symbol_name: str, base_addr: int, sym_type: str, size: int)
+        If you don't know the size, pass 0.
+
+        Explanation of how this works:
+        Adding symbols to GDB is non-trivial, it requires the use of an entire object file. Because of its
+        difficulty, this is currently only supported on ELFs. When adding a symbol, we use two binutils,
+        gcc and objcopy. After making a small ELF, we strip it of everything but needed sections. We then
+        use objcopy to one-by-one add a symbol to the file. Objcopy does not support sizing, so we do a byte
+        patch on the binary to allow for a real size. Finally, the whole object is read in with the default
+        gdb command: add-symbol-file.
+        """
+
+        if not self.check_native_symbol_support():
+            err("Native symbol support not supported on this platform.")
+            info("If you are on Linux and want native symbol support make sure you have gcc and objcopy.")
+            return False
+
+        #info("{:d} symbols will be added".format(len(sym_info_list)))
+
+        # locate the base address of the binary
+        vmmap = get_process_maps()
+        text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
+
+        # add each symbol into a mass symbol commit
+        max_commit_size = 1000
+        supported_types = ["function", "object"]
+
+        objcopy_cmds = []
+        queued_sym_sizes = {}
+        fname = self._construct_small_elf()
+        for i, (name, addr, typ, size) in enumerate(sym_info_list):
+            if typ not in supported_types:
+                warn("Skipping symbol {}, type is not supported: {}".format(name, typ))
+                continue
+
+            # queue the sym for later use
+            queued_sym_sizes[i] = size
+
+            # absolute addressing
+            if addr >= text_base:
+                addr_str = "{:#x}".format(addr)
+            # relative addressing
+            else:
+                addr_str = ".text:{:#x}".format(addr)
+
+            # create a symbol command for the symbol
+            objcopy_cmds.append(
+                "--add-symbol '{name}'={addr_str},global,{type_flag}".format(
+                    name=name, addr_str=addr_str, type_flag=typ
+                )
+            )
+
+            # batch commit
+            if i > 1 and not i % max_commit_size:
+                # add the queued symbols
+                self._add_symbol_file(fname, objcopy_cmds, text_base, queued_sym_sizes)
+
+                # re-init queues and elf
+                fname = self._construct_small_elf(text_base)
+                objcopy_cmds = []
+                queued_sym_sizes = {}
+
+        # commit remaining symbol commands
+        if objcopy_cmds:
+            self._add_symbol_file(fname, objcopy_cmds, text_base, queued_sym_sizes)
+
+        #info("{:d} symbols were added".format(i + 1))
+        return True
+
+    def check_native_symbol_support(self):
+        # validate binutils bins exist
+        try:
+            self._gcc = which("gcc")
+            self._objcopy = which("objcopy")
+        except FileNotFoundError as e:
+            err("Binutils binaries not found: {}".format(e))
+            return False
+
+        return True
+
+    def _construct_small_elf(self):
+        if self._elf_cache:
+            open(self._elf_cache["fname"], "wb").write(self._elf_cache["data"])
+            return self._elf_cache["fname"]
+
+        # compile a small elf for symbol loading
+        fd, fname = tempfile.mkstemp(dir="/tmp", suffix=".c")
+        os.fdopen(fd, "w").write("int main() {}")
+        #os.system(f"{self._gcc} {fname} -no-pie -o {fname}.debug")
+        os.system(f"{self._gcc} {fname} -o {fname}.debug")
+        # destroy the source file
+        os.unlink(f"{fname}")
+
+        # delete unneeded sections from object file
+        os.system(f"{self._objcopy} --only-keep-debug {fname}.debug")
+        os.system(f"{self._objcopy} --strip-all {fname}.debug")
+        elf = get_elf_headers(f"{fname}.debug")
+
+        required_sections = [".text", ".interp", ".rela.dyn", ".dynamic"]
+        for s in elf.shdrs:
+            # keep some required sections
+            if s.sh_name in required_sections:
+                continue
+
+            os.system(f"{self._objcopy} --remove-section={s.sh_name} {fname}.debug 2>/dev/null")
+
+        # cache the small object file for use
+        self._elf_cache["fname"] = fname + ".debug"
+        self._elf_cache["data"] = open(self._elf_cache["fname"], "rb").read()
+        return self._elf_cache["fname"]
+
+    def _force_update_text_size(self, elf_data, new_size):
+        # XXX: this is bad and only works on 64bit elf
+        default_text_size = 0x92
+        elf_rev = elf_data[::-1]
+        size_off = elf_rev.find(default_text_size)
+        patch = struct.pack("<Q", new_size)
+        size_off = len(elf_rev) - size_off - 1
+
+        elf_data[size_off:size_off+len(patch)] = patch
+        return elf_data
+
+    def _force_update_sym_sizes(self, fname, queued_sym_sizes):
+        # parsing based on: https://github.com/torvalds/linux/blob/master/include/uapi/linux/elf.h
+        get_elf_headers.cache_clear()
+        elf: Elf = get_elf_headers(fname)
+        elf_data = bytearray(open(fname, "rb").read())
+
+        # patch .text to seem large enough for any function
+        elf_data = self._force_update_text_size(elf_data, 0xFFFFFF)
+
+        # find the symbol table
+        for section in elf.shdrs:
+            if section.sh_name == ".symtab":
+                break
+        else:
+            return
+
+        # locate the location of the symbols size in the symtab
+        tab_offset = section.sh_offset
+        sym_data_size = 24 if elf.ELF_64_BITS else 16
+        sym_size_off = sym_data_size - 8
+
+        for i, size in queued_sym_sizes.items():
+            # skip sizes of 0
+            if not size:
+                continue
+
+            # compute offset
+            sym_size_loc = tab_offset + sym_data_size * (i + 5) + sym_size_off
+            pack_str = "<Q" if elf.ELF_64_BITS else "<I"
+            # write the new size
+            updated_size = struct.pack(pack_str, size)
+            elf_data[sym_size_loc:sym_size_loc + len(updated_size)] = updated_size
+
+        # write data back to elf
+        open(fname, "wb").write(elf_data)
+
+    def _add_symbol_file(self, fname, cmd_string_arr, text_base, queued_sym_sizes):
+        # first delete any possible symbol files
+        try:
+            gdb.execute("remove-symbol-file -a {:#x}".format(text_base))
+        except Exception:
+            pass
+
+        # add the symbols through copying
+        cmd_string = ' '.join(cmd_string_arr)
+        os.system(f"{self._objcopy} {cmd_string} {fname}")
+
+        # force update the size of each symbol
+        self._force_update_sym_sizes(fname, queued_sym_sizes)
+
+        gdb.execute(f"add-symbol-file {fname} {text_base:#x}", to_string=True)
+
+        os.unlink(fname)
+        return
+
 
 _decomp_sym_tab_ = SymbolMap()
-
-#
-# Decorators
-#
-
-# decompiler decorators
-def only_if_decompiler_connected(f):
-    """Decorator wrapper to check if Decompiler is online."""
-
-    @functools.wraps(f)
-    def wrapper(self, *args, **kwargs):
-        if self.connected():
-            return f(self, *args, **kwargs)
-
-    return wrapper
 
 
 #
@@ -122,7 +353,7 @@ class Decompiler:
         self.server = None
 
     #
-    # Server Operations
+    # Server Ops
     #
 
     def connected(self):
@@ -140,20 +371,22 @@ class Decompiler:
             self.server = xmlrpc.client.ServerProxy("http://{:s}:{:d}".format(host, port))
             self.server.ping()
         except (ConnectionRefusedError, AttributeError) as e:
-            gef_print("[!] Failed to connect")
             self.server = None
             return False
 
-        gef_print("[+] Connected!")
         return True
 
     @only_if_decompiler_connected
     def disconnect(self):
-        self.server.disconnect()
+        try:
+            self.server.disconnect()
+        except Exception:
+            pass
+
         self.server = None
 
     #
-    # Decompilation Operations
+    # Decompilation Server Requests
     #
 
     def global_info(self):
@@ -191,7 +424,7 @@ class Decompiler:
         Code should be the full decompilation of the function the address is within. If not in a function, None is
         also acceptable.
         """
-        return self.server.decompile(self.rebase_addr(addr))
+        return self.server.decompile(rebase_addr(addr))
 
     @only_if_decompiler_connected
     def get_stack_vars(self, addr) -> typing.Dict:
@@ -213,7 +446,7 @@ class Decompiler:
 
         All offsets will be negative offsets of the base pointer.
         """
-        return self.server.get_stack_vars(self.rebase_addr(addr))
+        return self.server.get_stack_vars(rebase_addr(addr))
 
     @only_if_decompiler_connected
     def get_structs(self) -> typing.List[typing.Dict]:
@@ -244,33 +477,31 @@ class Decompiler:
         Sets a comment in either disassembly or decompilation based on the address.
         Returns whether it was successful or not.
         """
-        return self.server.set_comment(cmt, self.rebase_addr(addr), decompilation)
+        return self.server.set_comment(cmt, rebase_addr(addr), decompilation)
 
     #
-    # Decompiler Utils
+    # GDB Info Setters
     #
 
-    def rebase_addr(self, addr, up=False):
-        vmmap = get_process_maps()
-        base_address = min([x.page_start for x in vmmap if x.path == get_filepath()])
-        checksec_status = checksec(get_filepath())
-        pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
-        corrected_addr = addr
-        if pie:
-            if up:
-                corrected_addr += base_address
-            else:
-                corrected_addr -= base_address
+    def get_and_set_global_info(self):
+        resp = self.global_info()
+        funcs_info = resp['function_headers']
 
-        return corrected_addr
+        # add symbols with native support if possible
+        if _decomp_sym_tab_.check_native_symbol_support():
+            funcs_to_add = []
+            for _, func_info in funcs_info.items():
+                funcs_to_add.append((func_info["name"], func_info["base_addr"], "function", func_info["size"]))
+            _decomp_sym_tab_.add_native_symbols(funcs_to_add)
+            return
 
-    def lookup_symbol_from_name(self, name: str) -> int:
-        return 0
-
-    def lookup_symbol_from_addr(self, addr: int) -> (str, int):
-
-        return "", 0
-
+        # no native symbol support, add through GEF override
+        for _, func_info in funcs_info.items():
+            _decomp_sym_tab_.add_mapping(
+                func_info["base_addr"],
+                func_info["size"],
+                func_info["name"]
+            )
 
 
 _decompiler_ = Decompiler()
@@ -290,11 +521,17 @@ class DecompilerCTXPane:
         self.curr_func = ""
 
     def _decompile_cur_pc(self, pc):
+        # update global info
+        try:
+            self.decompiler.get_and_set_global_info()
+        except Exception:
+            err("Decompiler seems to be inactive, disconnecting!")
+            self.decompiler.disconnect()
+            return False
+
         try:
             resp = self.decompiler.decompile(pc)
         except Exception as e:
-            gef_print("[!] DECOMPILER ERROR")
-            gef_print(e)
             return False
 
         code = resp['code']
@@ -304,7 +541,6 @@ class DecompilerCTXPane:
         self.decomp_lines = code
         self.curr_func = resp["func_name"]
         self.curr_line = resp["line"]
-
         return True
 
     def display_pane(self):
@@ -315,7 +551,7 @@ class DecompilerCTXPane:
             return
 
         if not self.ready_to_display:
-            gef_print("Unable to decompile function")
+            err("Unable to decompile function")
             return
 
         # configure based on source config
@@ -354,7 +590,7 @@ class DecompilerCTXPane:
         self.ready_to_display = self._decompile_cur_pc(current_arch.pc)
 
         if self.ready_to_display:
-            title = "decompiler:{:s}:{:s}:{:d}".format(self.decompiler.name, self.curr_func, self.curr_line)
+            title = "decompiler:{:s}:{:s}:{:d}".format(self.decompiler.name, self.curr_func, self.curr_line+1)
         else:
             title = "decomipler:{:s}:error".format(self.decompiler.name)
 
@@ -362,7 +598,6 @@ class DecompilerCTXPane:
 
 
 _decompiler_ctx_pane_ = DecompilerCTXPane(_decompiler_)
-register_external_context_pane("decompilation", _decompiler_ctx_pane_.display_pane, _decompiler_ctx_pane_.title)
 
 
 #
@@ -396,29 +631,29 @@ class DecompilerCommand(GenericCommand):
             self._handler_failed("not enough args")
             return
 
-        _decompiler_.connect(name=args[0])
+        connected = _decompiler_.connect(name=args[0])
+        if not connected:
+            err("Failed to connect to decompiler!")
+            return
 
+        info("Connected to decompiler!")
+
+        # register the context_pane after connection
+        register_external_context_pane("decompilation", _decompiler_ctx_pane_.display_pane, _decompiler_ctx_pane_.title)
+
+    def _handle_disconnect(self, args):
+        _decompiler_.disconnect()
+        info("Disconnected decompiler!")
+
+    @only_if_decompiler_connected
     def _handle_global_info(self, args):
         if len(args) != 1:
             self._handler_failed("not enough args")
-
         op = args[0]
 
         # import global info
         if op == "import":
-            resp = _decompiler_.global_info()
-            funcs_info = resp['function_headers']
-            funcs_to_add = []
-            for func_addr in funcs_info:
-                func_i = funcs_info[func_addr]
-                _decomp_sym_tab_.add_mapping(
-                    func_i["base_addr"],
-                    func_i["size"],
-                    func_i["name"]
-                )
-                funcs_to_add.append((func_i["name"],  func_i["base_addr"], None))
-
-            self.add_ida_symbol(funcs_to_add)
+            _decompiler_.get_and_set_global_info()
             return
 
         if op == "status":
@@ -428,101 +663,38 @@ class DecompilerCommand(GenericCommand):
                 gef_print("{:s}@0x{:x}".format(sym, addr))
             gef_print("======= END Decompiler Symbol Info =======")
 
+    def _handle_help(self, args):
+        usage_str = """\
+        Usage: decompiler <command>
+
+        Commands:
+            [] connect <name>
+                connects the decomp2gef plugin to the supported port over localhost.
+                * name = name of the decompiler, can be anything
+
+            [] disconnect
+
+            [] global_info [import | status]
+                does operations on the global_info present in the decompiler. Things like function names, global
+                symbols, and structs.
+
+                - import
+                    imports the global info from the decompiler and sets it in GDB
+
+                - status
+
+        Examples:
+            decompiler connect ida
+            decompiler global_info import
+            decompiler disconnect
+
+        """
+        gef_print(textwrap.dedent(usage_str))
+
     def _handler_failed(self, error):
         gef_print("[!] Failed to handle decompiler command: {}.".format(error))
+        self._handle_help(None)
 
-    #
-    # Decompiler debug info setters
-    #
-
-    def add_ida_symbol(self, function_info):
-        try:
-            gcc = which("gcc")
-            objcopy = which("objcopy")
-        except FileNotFoundError as e:
-            err("{}".format(e))
-            return
-
-        cache = {}
-
-        def create_blank_elf(text_base):
-            if cache:
-                open(cache["fname"], "wb").write(cache["data"])
-                return cache["fname"]
-            # create light ELF
-            fd, fname = tempfile.mkstemp(dir="/tmp", suffix=".c")
-            os.fdopen(fd, "w").write("int main() {}")
-            os.system(f"{gcc} {fname} -no-pie -o {fname}.debug")
-            os.unlink(f"{fname}")
-            # delete unneeded section for faster
-            os.system(f"{objcopy} --only-keep-debug {fname}.debug")
-            os.system(f"{objcopy} --strip-all {fname}.debug")
-            elf = get_elf_headers(f"{fname}.debug")
-            for s in elf.shdrs:
-                section_name = s.sh_name
-                if section_name == ".text":  # .text is needed, don't remove
-                    continue
-                if section_name == ".interp":  # broken if removed
-                    continue
-                if section_name == ".rela.dyn":  # cannot removed
-                    continue
-                if section_name == ".dynamic":  # cannot removed
-                    continue
-                os.system(f"{objcopy} --remove-section={section_name} {fname}.debug 2>/dev/null")
-            cache["fname"] = fname + ".debug"
-            gef_print(fname)
-            cache["data"] = open(cache["fname"], "rb").read()
-            return cache["fname"]
-
-        def apply_symbol(fname, cmd_string_arr, text_base):
-            cmd_string = ' '.join(cmd_string_arr)
-            os.system(f"{objcopy} {cmd_string} {fname}")
-            gdb.execute(f"add-symbol-file {fname} {text_base:#x}", to_string=True)
-            os.unlink(fname)
-            return
-
-        info("{:d} entries will be added".format(len(function_info)))
-
-        vmmap = get_process_maps()
-        text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
-
-        cmd_string_arr = []
-        fname = create_blank_elf(text_base)
-        for i, (fn, fa, typ) in enumerate(function_info):
-            # debug print
-            if i > 1 and i % 10000 == 0:
-                info("{:d} entries were processed".format(i))
-
-            if typ in ["T", "t", "W", None]:
-                type_flag = "function"
-            else:
-                type_flag = "object"
-            if typ and typ in "abcdefghijklmnopqrstuvwxyz":
-                global_flag = "local"
-            else:
-                global_flag = "global"
-
-            if fa > text_base:
-                cmd_string_arr.append(
-                    f"--add-symbol '{fn}'={fa:#x},{global_flag},{type_flag}")  # lower address needs not relative, use absolute
-            else:
-                relative_addr = fa #- text_base
-                cmd_string_arr.append(
-                    f"--add-symbol '{fn}'=.text:{relative_addr:#x},{global_flag},{type_flag}")  # higher address needs relative
-
-            if i > 1 and i % 1000 == 0:
-                # too long, so let's commit
-                apply_symbol(fname, cmd_string_arr, text_base)
-                # re-init
-                fname = create_blank_elf(text_base)
-                cmd_string_arr = []
-
-        # commit remain
-        if cmd_string_arr:
-            apply_symbol(fname, cmd_string_arr, text_base)
-
-        info("{:d} entries were processed".format(i + 1))
-        return
 
 register_external_command(DecompilerCommand())
 
@@ -530,8 +702,10 @@ register_external_command(DecompilerCommand())
 # Dirty overrides
 #
 
-@lru_cache(maxsize=512)
-def gdb_get_location_from_symbol(address):
+
+# XXX: globally overwrites the gef function gdb_get_location_from_symbol
+# this is hacky, but slyly adds an api to gef for adding symbols
+def gdb_get_location_from_symbol_overide(address):
     """Retrieve the location of the `address` argument from the symbol table.
     Return a tuple with the name and offset if found, None otherwise."""
     # this is horrible, ugly hack and shitty perf...
@@ -540,7 +714,7 @@ def gdb_get_location_from_symbol(address):
     sym = gdb.execute("info symbol {:#x}".format(address), to_string=True)
     if sym.startswith("No symbol matches"):
         # --- start patch --- #
-        sym_obj = _decomp_sym_tab_.lookup_symbol_from_addr(_decompiler_.rebase_addr(address))
+        sym_obj = _decomp_sym_tab_.lookup_symbol_from_addr(rebase_addr(address))
         return sym_obj
         # --- end patch --- #
 
