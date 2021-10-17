@@ -1,3 +1,22 @@
+#
+# ██████╗ ███████╗ ██████╗ ██████╗ ███╗   ███╗██████╗ ██████╗  ██████╗ ███████╗███████╗
+# ██╔══██╗██╔════╝██╔════╝██╔═══██╗████╗ ████║██╔══██╗╚════██╗██╔════╝ ██╔════╝██╔════╝
+# ██║  ██║█████╗  ██║     ██║   ██║██╔████╔██║██████╔╝ █████╔╝██║  ███╗█████╗  █████╗
+# ██║  ██║██╔══╝  ██║     ██║   ██║██║╚██╔╝██║██╔═══╝ ██╔═══╝ ██║   ██║██╔══╝  ██╔══╝
+# ██████╔╝███████╗╚██████╗╚██████╔╝██║ ╚═╝ ██║██║     ███████╗╚██████╔╝███████╗██║
+# ╚═════╝ ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚══════╝╚═╝
+# by mahaloz, 2021.
+#
+#
+# decomp2gef is a plugin to bring a decompiler interface to GEF.
+#
+# Hacking Around:
+# This script packs a lot in just a few lines. If you are trying to modify how decompilation is printed or
+# break-like events trigger decompiler callbacks, look at the decompiler ContextPane. For server requsts things,
+# or decoding, look in the Decompiler class.
+#
+
+
 import tempfile
 import textwrap
 import typing
@@ -609,6 +628,7 @@ class DecompilerCommand(GenericCommand):
     _cmdline_ = "decompiler"
     _syntax_ = "{:s} [connect | disconnect]".format(_cmdline_)
 
+    @only_if_gdb_running
     def do_invoke(self, argv):
         cmd = argv[0]
         args = argv[1:]
@@ -669,19 +689,24 @@ class DecompilerCommand(GenericCommand):
 
         Commands:
             [] connect <name>
-                connects the decomp2gef plugin to the supported port over localhost.
+                Connects the decomp2gef plugin to the decompiler. After a succesful connect, a decompilation pane
+                will be visible that will get updated with global decompiler info on each break-like event.
+                
                 * name = name of the decompiler, can be anything
 
             [] disconnect
+                Disconnects the decomp2gef plugin. Not needed to stop decompiler, but useful.
 
             [] global_info [import | status]
-                does operations on the global_info present in the decompiler. Things like function names, global
-                symbols, and structs.
+                Does operations on the global_info present in the decompiler. Things like function names, global
+                symbols, and structs. Only use this when you think the displayed symbols are wrong.
 
                 - import
-                    imports the global info from the decompiler and sets it in GDB
+                    Imports the global info from the decompiler and sets it in GDB. Take 2 steps to be visible. 
 
                 - status
+                    Shows all the symbols currently loaded in the symbol map if native support is not on. Only
+                    use when native symbol support is disabled.
 
         Examples:
             decompiler connect ida
