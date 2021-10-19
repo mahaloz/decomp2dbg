@@ -1,5 +1,5 @@
 # decomp2gef
-A plugin to introduce a generic API for Decompiler support in GEF. Like, GEF, the plugin
+A plugin to introduce a generic API for Decompiler support in GEF. Like GEF, the plugin
 is battery-included and requires no external dependencies other than Python. 
 
 ![decomp2gef](decomp2gef.png)
