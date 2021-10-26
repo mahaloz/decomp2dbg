@@ -277,7 +277,7 @@ class SymbolMap:
         os.system(f"{self._objcopy} --strip-all {fname}.debug")
         elf = get_elf_headers(f"{fname}.debug")
 
-        required_sections = [".text", ".interp", ".rela.dyn", ".dynamic"]
+        required_sections = [".text", ".interp", ".rela.dyn", ".dynamic", ".bss"]
         for s in elf.shdrs:
             # keep some required sections
             if s.sh_name in required_sections:
@@ -538,6 +538,8 @@ class DecompilerCTXPane:
         self.decomp_lines = []
         self.curr_line = -1
         self.curr_func = ""
+        self.lvars = []
+        self.stack_size = 0
 
     def _decompile_cur_pc(self, pc):
         # update global info
@@ -560,7 +562,42 @@ class DecompilerCTXPane:
         self.decomp_lines = code
         self.curr_func = resp["func_name"]
         self.curr_line = resp["line"]
+        self.stack_size = resp["stack_size"]
+        self.lvars = resp["lvars"]
+
+        self.set_local_vars()
+
         return True
+
+    def set_local_vars(self):
+        arch_bp = {
+            "i386:x86-64": ("rbp", 0x8) #gives base pointer register and size of pushed pointer to stack
+        }
+        type_conversion = {
+            "__int64": "int64_t"
+
+        }
+        #import ipdb; ipdb.set_trace()
+        for lvar in self.lvars:
+            arch = gdb.selected_frame().architecture().name()
+            if not arch in arch_bp:
+                continue
+
+            if lvar["is_arg"]:
+                continue
+
+            if lvar["type"] in type_conversion:
+                lvar["type"] = type_conversion[lvar["type"]]
+
+            #cmd = f"""set ${lvar['name']} = *(({lvar['type']} *) (${arch_bp[arch][0]} -  {self.stack_size - lvar['offset'] - arch_bp[arch][1]}))"""
+            expr = f"""*(({lvar['type']}*) (${arch_bp[arch][0]} -  {self.stack_size - lvar['offset'] - arch_bp[arch][1]}))"""
+
+            try:
+                val = gdb.parse_and_eval(expr)
+                gdb.set_convenience_variable(lvar['name'], val)
+            except Exception as e:
+                gdb.set_convenience_variable(lvar['name'], "Variable Unavailable")
+
 
     def display_pane(self):
         """

@@ -99,12 +99,37 @@ def _get_all_func_info():
 
     return resp
 
+def _get_all_struct_info():
+    resp = {"struct_info": []}
+    for i in range(idaapi.get_struc_qty()):
+        struct_id = idaapi.get_struc_by_idx(i)
+        struct = idaapi.get_struc(struct_id)
+        struct_info = {
+            "name": idaapi.get_struc_name(struct.id),
+            "members": []
+        }
+
+        for member in struct.members:
+            member_info = {
+                "name": idaapi.get_member_name(member.id)
+            }
+
+            tif = idaapi.tinfo_t()
+            if idaapi.get_member_tinfo(tif, member):
+                member_info["type"] = tif.__str__()
+            member_info["size"] = tif.get_size()
+            struct_info["members"].append(member_info)
+
+        resp["struct_info"].append(struct_info)
+
+    return resp
 
 @execute_read
 def global_info():
     resp = {}
     # function names, addrs, sizes
     resp.update(_get_all_func_info())
+    #resp.update(_get_all_struct_info())
     return resp
 
 
@@ -143,12 +168,29 @@ def decompile(addr: int):
     enc_lines = cfunc.get_pseudocode()
     decomp_lines = [idaapi.tag_remove(l.line) for l in enc_lines]
 
-    return {
+    # local variable info
+    lvar_info = []
+    for i, var in enumerate(cfunc.lvars):
+        if var.name and (var.location.in_stack or var.is_arg_var):
+            var_info = {}
+            var_info["name"] = var.name
+            var_info["type"] = var.type().__str__()
+            var_info["is_arg"] = var.is_arg_var
+            if var.is_arg_var:
+                var_info["offset"] = i
+            else:
+                var_info["offset"] = var.location.stkoff()
+            lvar_info.append(var_info)
+
+    output = {
         "code": decomp_lines,
         "func_name": func_name,
-        "line": cur_line_num
+        "line": cur_line_num,
+        "stack_size": cfunc.mba.stacksize,
+        "lvars": lvar_info
     }
 
+    return output
 
 #
 # XMLRPC Server Code
