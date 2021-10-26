@@ -547,9 +547,8 @@ class DecompilerCTXPane:
             self.decompiler.get_and_set_global_info()
         except Exception:
             err("Decompiler seems to be inactive, disconnecting!")
-            self.decompiler.disconnect()
-            return False
 
+        # decompile PC
         try:
             resp = self.decompiler.decompile(pc)
         except Exception as e:
@@ -705,6 +704,8 @@ class DecompilerCommand(GenericCommand):
     def _handle_global_info(self, args):
         if len(args) != 1:
             self._handler_failed("not enough args")
+            return
+
         op = args[0]
 
         # import global info
