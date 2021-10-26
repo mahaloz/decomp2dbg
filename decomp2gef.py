@@ -541,12 +541,17 @@ class DecompilerCTXPane:
         self.lvars = []
         self.args = []
 
+        # XXX: this needs to be removed in the future
+        self.stop_global_import = False
+
     def _decompile_cur_pc(self, pc):
         # update global info
-        try:
-            self.decompiler.get_and_set_global_info()
-        except Exception:
-            err("Decompiler seems to be inactive, disconnecting!")
+        if not self.stop_global_import:
+            try:
+                self.decompiler.get_and_set_global_info()
+            except Exception:
+                err("Decompiler failed to import global symbols")
+                self.stop_global_import = True
 
         # decompile PC
         try:
