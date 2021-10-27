@@ -168,26 +168,33 @@ def decompile(addr: int):
     enc_lines = cfunc.get_pseudocode()
     decomp_lines = [idaapi.tag_remove(l.line) for l in enc_lines]
 
-    # local variable info
+    # local variable and argument info
     lvar_info = []
-    for i, var in enumerate(cfunc.lvars):
-        if var.name and (var.location.in_stack or var.is_arg_var):
+    arg_info = []
+    for var in cfunc.lvars:
+        if var.name and var.location.in_stack:
             var_info = {}
             var_info["name"] = var.name
             var_info["type"] = var.type().__str__()
-            var_info["is_arg"] = var.is_arg_var
-            if var.is_arg_var:
-                var_info["offset"] = i
-            else:
-                var_info["offset"] = var.location.stkoff()
+            var_info["offset"] = var.location.stkoff()
             lvar_info.append(var_info)
+
+    for arg, idx in zip(cfunc.arguments, cfunc.argidx):
+        print(f"ARG: {arg.name} at IDX: {idx}")
+        if arg.name:
+            arg_i = {}
+            arg_i["name"] = arg.name
+            arg_i["type"] = arg.type().__str__()
+            arg_i["index"] = idx
+            arg_info.append(arg_i)
 
     output = {
         "code": decomp_lines,
         "func_name": func_name,
         "line": cur_line_num,
         "stack_size": cfunc.mba.stacksize,
-        "lvars": lvar_info
+        "lvars": lvar_info,
+        "args": arg_info
     }
 
     return output
