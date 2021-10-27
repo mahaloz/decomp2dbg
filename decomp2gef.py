@@ -591,7 +591,7 @@ class DecompilerCTXPane:
             if lvar["type"] in type_conversion:
                 lvar["type"] = type_conversion[lvar["type"]]
 
-            expr = f"""*(({lvar['type']}*) ($fp -  {self.stack_size - lvar['offset'] - current_arch.ptrsize + 0x18}))"""
+            expr = f"""*(({lvar['type']}*) ($fp -  {self.stack_size - lvar['offset'] + current_arch.ptrsize*2}))"""
 
             try:
                 val = gdb.parse_and_eval(expr)
