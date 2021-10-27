@@ -245,7 +245,6 @@ class SymbolMap:
         if objcopy_cmds:
             self._add_symbol_file(fname, objcopy_cmds, text_base, queued_sym_sizes)
 
-        #info("{:d} symbols were added".format(i + 1))
         return True
 
     def check_native_symbol_support(self):
@@ -370,6 +369,7 @@ class Decompiler:
         self.host = host
         self.port = port
         self.server = None
+        self.native_symbol_support = True
 
     #
     # Server Ops
@@ -386,12 +386,20 @@ class Decompiler:
         self.host = host
         self.port = port
 
+        # create a decompiler server connection and test it
         try:
             self.server = xmlrpc.client.ServerProxy("http://{:s}:{:d}".format(host, port))
             self.server.ping()
         except (ConnectionRefusedError, AttributeError) as e:
             self.server = None
             return False
+
+        # import global symbols for the first time
+        self.native_symbol_support = _decomp_sym_tab_.check_native_symbol_support()
+        worked = self.get_and_set_global_info()
+        if not worked:
+            info(f"Native symbol support failed for the above reasons, switching to non-native support.")
+            self.native_symbol_support = False
 
         return True
 
@@ -503,16 +511,28 @@ class Decompiler:
     #
 
     def get_and_set_global_info(self):
-        resp = self.global_info()
+        try:
+            resp = self.global_info()
+        except Exception as e:
+            err("Failed to get globals from server {}".format(e))
+            return False
+
         funcs_info = resp['function_headers']
 
         # add symbols with native support if possible
-        if _decomp_sym_tab_.check_native_symbol_support():
+        if self.native_symbol_support:
             funcs_to_add = []
             for _, func_info in funcs_info.items():
                 funcs_to_add.append((func_info["name"], func_info["base_addr"], "function", func_info["size"]))
-            _decomp_sym_tab_.add_native_symbols(funcs_to_add)
-            return
+
+            try:
+                _decomp_sym_tab_.add_native_symbols(funcs_to_add)
+            except Exception as e:
+                err("Failed to set symbols natively: {}".format(e))
+                self.native_symbol_support = False
+                return False
+
+            return True
 
         # no native symbol support, add through GEF override
         for _, func_info in funcs_info.items():
@@ -521,6 +541,7 @@ class Decompiler:
                 func_info["size"],
                 func_info["name"]
             )
+        return True
 
 
 _decompiler_ = Decompiler()
@@ -670,6 +691,10 @@ class DecompilerCommand(GenericCommand):
 
     @only_if_gdb_running
     def do_invoke(self, argv):
+        if len(argv) < 2:
+            self._handle_help(None)
+            return
+
         cmd = argv[0]
         args = argv[1:]
         self._handle_cmd(cmd, args)
