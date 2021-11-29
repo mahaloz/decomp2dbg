@@ -540,7 +540,6 @@ class DecompilerCTXPane:
         self.curr_func = ""
         self.lvars = []
         self.args = []
-        self.stack_size = 0
 
     def _decompile_cur_pc(self, pc):
         # update global info
@@ -563,7 +562,6 @@ class DecompilerCTXPane:
         self.decomp_lines = code
         self.curr_func = resp["func_name"]
         self.curr_line = resp["line"]
-        self.stack_size = resp["stack_size"]
         self.lvars = resp["lvars"]
         self.args = resp["args"]
 
@@ -588,16 +586,22 @@ class DecompilerCTXPane:
 
 
         for lvar in self.lvars:
-            if lvar["type"] in type_conversion:
-                lvar["type"] = type_conversion[lvar["type"]]
+            if "__" in  lvar["type"]:
+                lvar["type"] = lvar["type"].replace("__", "")
+                idx = lvar["type"].find("[")
+                if idx != -1:
+                    lvar["type"] = lvar["type"][:idx] + "_t" + lvar["type"][idx:]
+                else:
+                    lvar["type"] += "_t"
+            lvar["type"] = lvar["type"].replace("unsigned ", "u")
 
-            expr = f"""*(({lvar['type']}*) ($fp -  {self.stack_size - lvar['offset'] + current_arch.ptrsize*2}))"""
+            expr = f"""({lvar['type']}*) ($fp -  {lvar['offset']})"""
 
             try:
-                val = gdb.parse_and_eval(expr)
-                gdb.set_convenience_variable(lvar['name'], val)
+                print("EXECUTING:",f"set ${lvar['name']} = " + expr)
+                gdb.execute(f"set ${lvar['name']} = " + expr)
             except Exception as e:
-                gdb.set_convenience_variable(lvar['name'], "Variable Unavailable")
+                gdb.execute(f"set ${lvar['name']} = ($fp - {lvar['offset']})")
 
 
     def display_pane(self):

@@ -169,6 +169,8 @@ def decompile(addr: int):
     decomp_lines = [idaapi.tag_remove(l.line) for l in enc_lines]
 
     # local variable and argument info
+    frame = idaapi.get_frame(func_addr)
+    frame_size = idc.get_struc_size(frame)
     lvar_info = []
     arg_info = []
     for var in cfunc.lvars:
@@ -176,7 +178,7 @@ def decompile(addr: int):
             var_info = {}
             var_info["name"] = var.name
             var_info["type"] = var.type().__str__()
-            var_info["offset"] = var.location.stkoff()
+            var_info["offset"] = cfunc.mba.stacksize - var.location.stkoff() + 2*idaapi.get_member_size(frame.get_member(frame.memqty - 1))
             lvar_info.append(var_info)
 
     for arg, idx in zip(cfunc.arguments, cfunc.argidx):
@@ -192,7 +194,6 @@ def decompile(addr: int):
         "code": decomp_lines,
         "func_name": func_name,
         "line": cur_line_num,
-        "stack_size": cfunc.mba.stacksize,
         "lvars": lvar_info,
         "args": arg_info
     }
