@@ -178,7 +178,7 @@ def decompile(addr: int):
             var_info = {}
             var_info["name"] = var.name
             var_info["type"] = var.type().__str__()
-            var_info["offset"] = cfunc.mba.stacksize - var.location.stkoff() - idaapi.get_member_size(frame.get_member(frame.memqty - 1))
+            var_info["offset"] = cfunc.mba.stacksize - var.location.stkoff() + 2*idaapi.get_member_size(frame.get_member(frame.memqty - 1))
             lvar_info.append(var_info)
 
     for arg, idx in zip(cfunc.arguments, cfunc.argidx):
