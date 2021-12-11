@@ -570,10 +570,6 @@ class DecompilerCTXPane:
         return True
 
     def set_local_vars(self, pc):
-        type_conversion = {
-            "__int64": "int64_t"
-
-        }
 
         for arg in self.args:
             expr = f"""(({arg['type']}) {current_arch.function_parameters[arg['index']]}"""
