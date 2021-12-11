@@ -573,7 +573,6 @@ class DecompilerCTXPane:
 
         for arg in self.args:
             expr = f"""(({arg['type']}) {current_arch.function_parameters[arg['index']]}"""
-            print(f"SETTING: {arg['name']} FROM {expr}")
             try:
                 val = gdb.parse_and_eval(expr)
                 gdb.set_convenience_variable(arg['name'], val)
@@ -594,7 +593,6 @@ class DecompilerCTXPane:
             expr = f"""({lvar['type']}*) ($fp -  {lvar['offset']})"""
 
             try:
-                print("EXECUTING:",f"set ${lvar['name']} = " + expr)
                 gdb.execute(f"set ${lvar['name']} = " + expr)
             except Exception as e:
                 gdb.execute(f"set ${lvar['name']} = ($fp - {lvar['offset']})")
