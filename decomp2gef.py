@@ -274,6 +274,15 @@ class SymbolMap:
         # delete unneeded sections from object file
         os.system(f"{self._objcopy} --only-keep-debug {fname}.debug")
         os.system(f"{self._objcopy} --strip-all {fname}.debug")
+        elf = get_elf_headers(f"{fname}.debug")
+
+        required_sections = [".text", ".interp", ".rela.dyn", ".dynamic", ".bss"]
+        for s in elf.shdrs:
+            # keep some required sections
+            if s.sh_name in required_sections:
+                continue
+
+            os.system(f"{self._objcopy} --remove-section={s.sh_name} {fname}.debug 2>/dev/null")
 
         # cache the small object file for use
         self._elf_cache["fname"] = fname + ".debug"
@@ -550,6 +559,11 @@ class DecompilerCTXPane:
         self.decomp_lines = []
         self.curr_line = -1
         self.curr_func = ""
+        self.lvars = []
+        self.args = []
+
+        # XXX: this needs to be removed in the future
+        self.stop_global_import = False
 
         # XXX: this needs to be removed in the future
         self.stop_global_import = False
@@ -576,7 +590,41 @@ class DecompilerCTXPane:
         self.decomp_lines = code
         self.curr_func = resp["func_name"]
         self.curr_line = resp["line"]
+        self.lvars = resp["lvars"]
+        self.args = resp["args"]
+
+        self.set_local_vars(pc)
+
         return True
+
+    def set_local_vars(self, pc):
+
+        for arg in self.args:
+            expr = f"""(({arg['type']}) {current_arch.function_parameters[arg['index']]}"""
+            try:
+                val = gdb.parse_and_eval(expr)
+                gdb.set_convenience_variable(arg['name'], val)
+            except Exception as e:
+                gdb.set_convenience_variable(arg['name'], "Variable Unavailable")
+
+
+        for lvar in self.lvars:
+            if "__" in  lvar["type"]:
+                lvar["type"] = lvar["type"].replace("__", "")
+                idx = lvar["type"].find("[")
+                if idx != -1:
+                    lvar["type"] = lvar["type"][:idx] + "_t" + lvar["type"][idx:]
+                else:
+                    lvar["type"] += "_t"
+            lvar["type"] = lvar["type"].replace("unsigned ", "u")
+
+            expr = f"""({lvar['type']}*) ($fp -  {lvar['offset']})"""
+
+            try:
+                gdb.execute(f"set ${lvar['name']} = " + expr)
+            except Exception as e:
+                gdb.execute(f"set ${lvar['name']} = ($fp - {lvar['offset']})")
+
 
     def display_pane(self):
         """
