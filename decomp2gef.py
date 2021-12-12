@@ -565,6 +565,9 @@ class DecompilerCTXPane:
         # XXX: this needs to be removed in the future
         self.stop_global_import = False
 
+        # XXX: this needs to be removed in the future
+        self.stop_global_import = False
+
     def _decompile_cur_pc(self, pc):
         # update global info
         if not self.stop_global_import:
