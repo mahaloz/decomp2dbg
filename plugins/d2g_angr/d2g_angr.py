@@ -116,6 +116,23 @@ class Decomp2GefPlugin(BasePlugin):
         decomp = self._instance.kb.structured_code[(func.addr, 'pseudocode')].codegen
         return decomp
 
+    def local_vars_from_decomp(self, decomp):
+        lvars = []
+        manager = decomp.cfunc.variable_manager
+        print(manager._unified_variables)
+        for var in manager._unified_variables:
+            print(lvars)
+            if isinstance(var, angr.sim_variable.SimStackVariable):
+                print("BEFORE")
+                lvars.append({
+                    "name": var.name,
+                    "type": manager.get_variable_type(var).c_repr(),
+                    "offset": var.offset
+                })
+                print("AFTER")
+        return lvars
+
+
     def decompile(self, addr: int):
         resp = {"code": None}
         self._workspace.log(f"Attempting decompile for {hex(addr)}")
@@ -135,8 +152,11 @@ class Decomp2GefPlugin(BasePlugin):
                 break
         else:
             return resp
+        lvars = [] #self.local_vars_from_decomp(decomp)
 
         resp["code"] = decomp_lines
         resp["func_name"] = func.name
         resp["line"] = idx
+        resp["lvars"] = lvars
+        resp["args"] = []
         return resp
