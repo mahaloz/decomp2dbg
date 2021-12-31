@@ -60,7 +60,7 @@ def only_if_decompiler_connected(f):
     """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        if _decompiler_ and _decompiler_.connected():
+        if _decompiler_ and _decompiler_.connected:
             return f(*args, **kwargs)
 
     return wrapper
@@ -97,11 +97,13 @@ class SymbolMap:
     be able to lookup addresses in the middle of the range fast
     """
 
-    __slots__ = ('_symmap',
-                 '_sym_to_addr_tbl',
-                 '_elf_cache',
-                 '_objcopy',
-                 '_gcc')
+    __slots__ = (
+        '_symmap',
+        '_sym_to_addr_tbl',
+        '_elf_cache',
+        '_objcopy',
+        '_gcc'
+    )
 
     DUPLICATION_CHECK = False
 
@@ -375,6 +377,7 @@ class Decompiler:
     # Server Ops
     #
 
+    @property
     def connected(self):
         return True if self.server else False
 
@@ -603,10 +606,10 @@ class DecompilerCTXPane:
             expr = f"""(({arg['type']}) {current_arch.function_parameters[arg['index']]}"""
             try:
                 val = gdb.parse_and_eval(expr)
-                gdb.set_convenience_variable(arg['name'], val)
+                gdb.execute(f"set ${arg['name']} {val}")
             except Exception as e:
-                gdb.set_convenience_variable(arg['name'], "Variable Unavailable")
-
+                pass
+                #gdb.execute(f'set ${arg["name"]} NA')
 
         for lvar in self.lvars:
             if "__" in  lvar["type"]:
@@ -630,7 +633,7 @@ class DecompilerCTXPane:
         """
         Display the current decompilation, with an arrow next to the current line.
         """
-        if not self.decompiler.connected():
+        if not self.decompiler.connected:
             return
 
         if not self.ready_to_display:
@@ -667,7 +670,7 @@ class DecompilerCTXPane:
         """
         Special note: this function is always called before display_pane
         """
-        if not self.decompiler.connected():
+        if not self.decompiler.connected:
             return None
 
         self.ready_to_display = self._decompile_cur_pc(current_arch.pc)
