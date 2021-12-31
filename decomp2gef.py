@@ -22,7 +22,6 @@ import textwrap
 import typing
 import xmlrpc.client
 import functools
-import sortedcontainers
 import struct
 import os
 
@@ -69,108 +68,21 @@ def only_if_decompiler_connected(f):
 # Symbol Mapping
 #
 
-class SymbolMapElement:
+class SymbolMapper:
     """
-    An element in the symbol map. Used to support range-keyed dicts. Imagine something like:
-    d[range(0x10,0x20)] = "thing"
-
-    You would be able to access thing through accessing any index between 0x10 and 0x20.
-    """
-
-    __slots__ = ('start', 'length', 'sym')
-
-    def __init__(self, start, length, sym):
-        self.start: int = start
-        self.length: int = length
-        self.sym = sym
-
-    def __contains__(self, offset):
-        return self.start <= offset < self.start + self.length
-
-    def __repr__(self):
-        return "<%d-%d: %s>" % (self.start, self.start + self.length, self.sym)
-
-
-class SymbolMap:
-    """
-    A binary search dict implementation for ranges. Symbols will map for a range and we need to
-    be able to lookup addresses in the middle of the range fast
+    A mapper for native symbols
     """
 
     __slots__ = (
-        '_symmap',
-        '_sym_to_addr_tbl',
         '_elf_cache',
         '_objcopy',
         '_gcc'
     )
 
-    DUPLICATION_CHECK = False
-
     def __init__(self):
-        self._symmap = sortedcontainers.SortedDict()
-        self._sym_to_addr_tbl = {}
-
         self._elf_cache = {}
         self._objcopy = None
         self._gcc = None
-
-    #
-    # Public API for mapping
-    #
-
-    def items(self):
-        return self._symmap.items()
-
-    def add_mapping(self, start_pos, length, sym):
-        # duplication check
-        if self.DUPLICATION_CHECK:
-            try:
-                pre = next(self._symmap.irange(maximum=start_pos, reverse=True))
-                if start_pos in self._symmap[pre]:
-                    raise ValueError("New mapping is overlapping with an existing element.")
-            except StopIteration:
-                pass
-
-        self._sym_to_addr_tbl[sym] = start_pos
-        self._symmap[start_pos] = SymbolMapElement(start_pos, length, sym)
-
-    def rename_symbol(self, symbol: str):
-        sym_addr = self.lookup_addr_from_symbol(symbol)
-        if not sym_addr:
-            return False
-
-        element = self._get_element(sym_addr)
-        element.sym = sym_addr
-        self._sym_to_addr_tbl[symbol] = sym_addr
-        return True
-
-    def lookup_addr_from_symbol(self, symbol: str):
-        try:
-            addr = self._sym_to_addr_tbl[symbol]
-        except KeyError:
-            return None
-
-        return addr
-
-    def lookup_symbol_from_addr(self, addr: int):
-        element = self._get_element(addr)
-        if element is None:
-            return None
-
-        offset = addr - element.start
-        return element.sym, offset
-
-    def _get_element(self, pos: int) -> typing.Optional[SymbolMapElement]:
-        try:
-            pre = next(self._symmap.irange(maximum=pos, reverse=True))
-        except StopIteration:
-            return None
-
-        element = self._symmap[pre]
-        if pos in element:
-            return element
-        return None
 
     #
     # Native Symbol Support (Linux Only)
@@ -358,7 +270,7 @@ class SymbolMap:
         return
 
 
-_decomp_sym_tab_ = SymbolMap()
+_decomp_sym_tab_ = SymbolMapper()
 
 
 #
@@ -536,15 +448,7 @@ class Decompiler:
                 return False
 
             return True
-
-        # no native symbol support, add through GEF override
-        for _, func_info in funcs_info.items():
-            _decomp_sym_tab_.add_mapping(
-                func_info["base_addr"],
-                func_info["size"],
-                func_info["name"]
-            )
-        return True
+        return False
 
 
 _decompiler_ = Decompiler()
@@ -749,13 +653,6 @@ class DecompilerCommand(GenericCommand):
             _decompiler_.get_and_set_global_info()
             return
 
-        if op == "status":
-            gef_print("======= Decompiler Symbol Info =======")
-            gef_print("Imported {:d} symbols".format(len(_decomp_sym_tab_._sym_to_addr_tbl)))
-            for sym, addr in _decomp_sym_tab_._sym_to_addr_tbl.items():
-                gef_print("{:s}@0x{:x}".format(sym, addr))
-            gef_print("======= END Decompiler Symbol Info =======")
-
     def _handle_help(self, args):
         usage_str = """\
         Usage: decompiler <command>
@@ -795,30 +692,3 @@ class DecompilerCommand(GenericCommand):
 
 
 register_external_command(DecompilerCommand())
-
-#
-# Dirty overrides
-#
-
-
-# XXX: globally overwrites the gef function gdb_get_location_from_symbol
-# this is hacky, but slyly adds an api to gef for adding symbols
-def gdb_get_location_from_symbol_overide(address):
-    """Retrieve the location of the `address` argument from the symbol table.
-    Return a tuple with the name and offset if found, None otherwise."""
-    # this is horrible, ugly hack and shitty perf...
-    # find a *clean* way to get gdb.Location from an address
-    name = None
-    sym = gdb.execute("info symbol {:#x}".format(address), to_string=True)
-    if sym.startswith("No symbol matches"):
-        # --- start patch --- #
-        sym_obj = _decomp_sym_tab_.lookup_symbol_from_addr(rebase_addr(address))
-        return sym_obj
-        # --- end patch --- #
-
-    i = sym.find(" in section ")
-    sym = sym[:i].split()
-    name, offset = sym[0], 0
-    if len(sym) == 3 and sym[2].isdigit():
-        offset = int(sym[2])
-    return name, offset
