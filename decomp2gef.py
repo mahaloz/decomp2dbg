@@ -60,7 +60,7 @@ def only_if_decompiler_connected(f):
     """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        if _decompiler_ and _decompiler_.connected():
+        if _decompiler_ and _decompiler_.connected:
             return f(*args, **kwargs)
 
     return wrapper
@@ -381,7 +381,7 @@ class Decompiler:
     def connected(self):
         return True if self.server else False
 
-    def connect(self, name="decompiler", host="127.0.0.1", port=3662) -> bool:
+    def connect(self, name="decompiler", host="192.168.0.11", port=3662) -> bool:
         """
         Connects to the remote decompiler.
         """
@@ -606,10 +606,10 @@ class DecompilerCTXPane:
             expr = f"""(({arg['type']}) {current_arch.function_parameters[arg['index']]}"""
             try:
                 val = gdb.parse_and_eval(expr)
-                gdb.set_convenience_variable(arg['name'], val)
+                gdb.execute(f"set ${arg['name']} {val}")
             except Exception as e:
-                gdb.set_convenience_variable(arg['name'], "Variable Unavailable")
-
+                pass
+                #gdb.execute(f'set ${arg["name"]} NA')
 
         for lvar in self.lvars:
             if "__" in  lvar["type"]:
@@ -633,7 +633,7 @@ class DecompilerCTXPane:
         """
         Display the current decompilation, with an arrow next to the current line.
         """
-        if not self.decompiler.connected():
+        if not self.decompiler.connected:
             return
 
         if not self.ready_to_display:
@@ -670,7 +670,7 @@ class DecompilerCTXPane:
         """
         Special note: this function is always called before display_pane
         """
-        if not self.decompiler.connected():
+        if not self.decompiler.connected:
             return None
 
         self.ready_to_display = self._decompile_cur_pc(current_arch.pc)
