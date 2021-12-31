@@ -381,7 +381,7 @@ class Decompiler:
     def connected(self):
         return True if self.server else False
 
-    def connect(self, name="decompiler", host="192.168.0.11", port=3662) -> bool:
+    def connect(self, name="decompiler", host="127.0.0.1", port=3662) -> bool:
         """
         Connects to the remote decompiler.
         """
