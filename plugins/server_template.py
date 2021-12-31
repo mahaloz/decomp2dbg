@@ -1,3 +1,10 @@
+from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
+HOST, PORT = "0.0.0.0", 3662
+
+
+class RequestHandler(SimpleXMLRPCRequestHandler):
+    rpc_paths = ("/RPC2",)
+
 
 class DecompilerServer:
 
@@ -21,87 +28,78 @@ class DecompilerServer:
 
         return resp
 
-    def global_info(self):
-        """
-        This function is responsible for returning all global knowledge about the program. Supported
-        global knowledge types:
-        - function_headers (name, addr, size)
-        - global_vars (name, addr, size)
-        - structs (name, size, members)
-
-        Each global knowledge type has a specific structure for its associated dict. Every member wrapped with
-        a <> is something dynamic that will be defined at runtime, like a function name.
-        function_headers:
-        {
-            <func_name>:
-            {
+    def function_headers(self):
+        resp = {
+            0xdeadbeef: {
                 "name": str,
-                "addr": int,
                 "size": int
             },
-            ...
         }
 
-        global_vars:
-        {
-            <var_name>:
-            {
-                "name": str,
-                "addr": int,
-                "size": int
+        return resp
+
+    def global_vars(self):
+        resp = {
+            0xdeadbeef: {
+                "name": str
             },
-            ...
         }
 
-        structs:
-        {
-            <struct_name>:
-            {
-                "name": str,
+        return resp
+
+    def stack_vars(self, func_addr):
+        resp = {
+            0x10: {
+                "name": str
+            },
+        }
+
+        return resp
+
+    def structs(self):
+        resp = {
+            "example_struct_name": {
                 "size": int,
-                <struct_member_name>:
-                {
-                    "name": str,
+                "example_member_name": {
                     "offset": int,
                     "size": int
-                }
-                ...
+                },
             },
-            ...
-        }
-
-        Always returns a dict with the defined keys below, which may have None as their values.
-        """
-
-        resp = {
-            "function_headers": {},
-            "global_vars": {},
-            "structs": {}
         }
 
         return resp
 
-    def local_info(self, func_addr: int):
-        """
-        This function is responsible for returning info about about the current function, usually used with decompile
-        interface. Each global knowledge type has a specific structure for its associated dict. Every member
-        wrapped with a <> is something dynamic that will be defined at runtime, like a variable name.
-        stack_vars:
-        {
-            <var_name>:
-            {
-                "name": str,
-                "offset: int
-            },
-        }
-        Note: offset is always relative to rbp. Many decompilers will need conversions to match this offset convention
-        for stack variables.
-
-        Always returns a dict with the defined keys below, which may have None as their values.
-        """
+    def breakpoints(self):
         resp = {
-            "func_name": str,
-            "stack_vars": {}
+            0xdeadbeef: bool,
+            0xdeadbeef+1: bool,
         }
 
         return resp
+
+    #
+    # XMLRPC Server
+    #
+
+    def ping(self):
+        return True
+
+    def start_xmlrpc_server(self):
+        """
+        Initialize the XMLRPC thread.
+        """
+        print("[+] Starting XMLRPC server: {}:{}".format(HOST, PORT))
+        server = SimpleXMLRPCServer(
+            (HOST, PORT),
+            requestHandler=RequestHandler,
+            logRequests=False,
+            allow_none=True
+        )
+        server.register_introspection_functions()
+        server.register_function(self.decompile)
+        server.register_function(self.function_headers)
+        server.register_function(self.global_vars)
+        server.register_function(self.structs)
+        print("[+] Registered decompilation server!")
+        while True:
+            server.handle_request()

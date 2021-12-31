@@ -97,11 +97,13 @@ class SymbolMap:
     be able to lookup addresses in the middle of the range fast
     """
 
-    __slots__ = ('_symmap',
-                 '_sym_to_addr_tbl',
-                 '_elf_cache',
-                 '_objcopy',
-                 '_gcc')
+    __slots__ = (
+        '_symmap',
+        '_sym_to_addr_tbl',
+        '_elf_cache',
+        '_objcopy',
+        '_gcc'
+    )
 
     DUPLICATION_CHECK = False
 
@@ -375,6 +377,7 @@ class Decompiler:
     # Server Ops
     #
 
+    @property
     def connected(self):
         return True if self.server else False
 
