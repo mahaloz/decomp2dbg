@@ -28,6 +28,28 @@ class DecompilerServer:
 
         return resp
 
+    def function_data(self, addr: int):
+        """
+        Returns stack vars and func args
+
+        """
+        resp = {
+            "args": {
+                0x0: {
+                    "name": "example_name",
+                    "type": "some_type",
+                },
+            },
+            "stack_vars": {
+                0x10: {
+                    "name": "example_name",
+                    "type": "some_type",
+                },
+            },
+        }
+
+        return resp
+
     def function_headers(self):
         resp = {
             0xdeadbeef: {
@@ -41,15 +63,6 @@ class DecompilerServer:
     def global_vars(self):
         resp = {
             0xdeadbeef: {
-                "name": str
-            },
-        }
-
-        return resp
-
-    def stack_vars(self, func_addr):
-        resp = {
-            0x10: {
                 "name": str
             },
         }
@@ -98,7 +111,9 @@ class DecompilerServer:
         server.register_introspection_functions()
         server.register_function(self.decompile)
         server.register_function(self.function_headers)
+        server.register_function(self.function_data)
         server.register_function(self.global_vars)
+        server.register_function(self.ping)
         server.register_function(self.structs)
         print("[+] Registered decompilation server!")
         while True:
