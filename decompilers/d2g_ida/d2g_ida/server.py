@@ -9,19 +9,15 @@
 #
 # by mahaloz, 2021.
 #
-
 from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 import threading
 import functools
 
-import ida_hexrays, ida_funcs, idc, ida_pro, ida_lines, idaapi, idautils
-
-HOST, PORT = "0.0.0.0", 3662
+import ida_hexrays, ida_funcs, idc, ida_pro, ida_lines, idaapi, idautils, ida_segment
 
 
 class RequestHandler(SimpleXMLRPCRequestHandler):
     rpc_paths = ("/RPC2",)
-
 #
 # Wrappers for IDA Main thread r/w operations
 #
@@ -80,14 +76,14 @@ def execute_write(func):
 def execute_ui(func):
     return execute_sync(func, idaapi.MFF_FAST)
 
-
 #
 # Decompilation API
 #
 
 class IDADecompilerServer:
-    def __init__(self):
-        pass
+    def __init__(self, host="localhost", port=3662):
+        self.host = host
+        self.port = port
 
     @execute_read
     def decompile(self, addr):
@@ -164,7 +160,7 @@ class IDADecompilerServer:
                 - var.location.stkoff() \
                 + idaapi.get_member_size(frame.get_member(frame.memqty - 1))
 
-            stack_vars[offset] = {
+            stack_vars[str(offset)] = {
                 "name": var.name,
                 "type": str(var.type())
             }
@@ -175,7 +171,7 @@ class IDADecompilerServer:
             if not arg.name:
                 continue
 
-            func_args[idx] = {
+            func_args[str(idx)] = {
                 "name": arg.name,
                 "type": str(arg.type())
             }
@@ -201,15 +197,49 @@ class IDADecompilerServer:
                     continue
 
                 func_size = ida_funcs.get_func(f_addr).size()
-                resp[f_addr] = {
+                resp[str(f_addr)] = {
                     "name": func_name,
                     "size": func_size
                 }
 
         return resp
 
+    @execute_read
     def global_vars(self):
         resp = {}
+        """
+        curr_seg = ida_segment.get_first_seg()
+        while curr_seg:
+            # filter for only data segments
+            if idc.is_data(curr_seg.flags):
+                for seg_ea in range(curr_seg.start_ea, curr_seg.end_ea):
+                    xrefs = idautils.XrefsTo(seg_ea)
+                    # only places with xrefs are actually variables
+                    if xrefs and len(xrefs) > 0:
+                        resp[str(seg_ea)] = {
+                            "name": idaapi.get_name(seg_ea)
+                        }
+
+            curr_seg = ida_segment.get_next_seg(curr_seg.start_ea)
+        """
+        known_segs = [".data", ".rodata", ".bss"]
+        for seg_name in known_segs:
+            seg = idaapi.get_segm_by_name(seg_name)
+            for seg_ea in range(seg.start_ea, seg.end_ea):
+                xrefs = idautils.XrefsTo(seg_ea)
+                try:
+                    next(xrefs)
+                except StopIteration:
+                    continue
+
+                name = idaapi.get_name(seg_ea)
+                if not name:
+                    continue
+
+                resp[str(seg_ea)] = {
+                    "name": name
+                }
+
         return resp
 
     @execute_read
@@ -247,9 +277,9 @@ class IDADecompilerServer:
         """
         Initialize the XMLRPC thread.
         """
-        print("[+] Starting XMLRPC server: {}:{}".format(HOST, PORT))
+        print("[+] Starting XMLRPC server: {}:{}".format(self.host, self.port))
         server = SimpleXMLRPCServer(
-            (HOST, PORT),
+            (self.host, self.port),
             requestHandler=RequestHandler,
             logRequests=False,
             allow_none=True
@@ -259,16 +289,8 @@ class IDADecompilerServer:
         server.register_function(self.function_headers)
         server.register_function(self.function_data)
         server.register_function(self.global_vars)
-        server.register_function(self.ping)
         server.register_function(self.structs)
+        server.register_function(self.ping)
         print("[+] Registered decompilation server!")
         while True:
             server.handle_request()
-
-
-if __name__ == "__main__":
-    decomp_server = IDADecompilerServer()
-    t = threading.Thread(target=decomp_server.start_xmlrpc_server, args=())
-    t.daemon = True
-    print("[+] Creating new thread for XMLRPC server: {}".format(t.name))
-    t.start()

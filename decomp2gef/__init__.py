@@ -1,2 +1,2 @@
 from .client import DecompilerClient
-from .server import DecompilerServer
+from .server_template import DecompilerServer

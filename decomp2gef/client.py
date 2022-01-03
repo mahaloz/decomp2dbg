@@ -12,7 +12,7 @@ def only_if_connected(f):
 
 
 class DecompilerClient:
-    def __init__(self, name="decompiler", host="127.0.0.1", port=3662, native_sym_support=True):
+    def __init__(self, name="decompiler", host="localhost", port=3662, native_sym_support=True):
         self.name = name
         self.host = host
         self.port = port
@@ -27,13 +27,13 @@ class DecompilerClient:
     def connected(self):
         return True if self.server else False
 
-    def connect(self, name=None, host_=None, port_=None) -> bool:
+    def connect(self, name=None, host=None, port=None) -> bool:
         """
         Connects to the remote decompiler.
         """
         self.name = name or self.name
-        host = host_ or self.host
-        port = port_ or self.port
+        host = host or self.host
+        port = port or self.port
 
         # create a decompiler server connection and test it
         try:

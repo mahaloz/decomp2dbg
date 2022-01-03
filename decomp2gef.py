@@ -374,6 +374,15 @@ class GEFDecompilerClient(DecompilerClient):
     def __init__(self, name="decompiler", host="127.0.0.1", port=3662):
         super(GEFDecompilerClient, self).__init__(name=name, host=host, port=port)
 
+    def update_global_vars(self):
+        for addr, global_var in self.global_vars.items():
+            addr = int(addr, 0)
+            try:
+                gdb.execute(f"set ${global_var['name']} = (long long *) {addr}")
+            except Exception as e:
+                warn(f"FAILED GLOBAL VAR: {e}")
+                pass
+
     def update_function_headers(self):
         func_headers = self.function_headers
 
@@ -381,7 +390,7 @@ class GEFDecompilerClient(DecompilerClient):
         if self.native_sym_support:
             funcs_to_add = []
             for func_addr, info in func_headers.items():
-                funcs_to_add.append((info["name"], func_addr, "function", info["size"]))
+                funcs_to_add.append((info["name"], int(func_addr, 0), "function", info["size"]))
 
             try:
                 _decomp_sym_tab_.add_native_symbols(funcs_to_add)
@@ -395,18 +404,19 @@ class GEFDecompilerClient(DecompilerClient):
         # no native symbol support, add through GEF override
         for func_addr, info in func_headers.items():
             _decomp_sym_tab_.add_mapping(
-                func_addr,
+                int(func_addr, 0),
                 info["size"],
                 info["name"]
             )
         return True
 
     def update_function_data(self, addr):
-        func_data = self.function_data
+        func_data = self.function_data(addr)
         args = func_data["args"]
         stack_vars = func_data["stack_vars"]
 
         for idx, arg in args.items():
+            idx = int(idx, 0)
             expr = f"""(({arg['type']}) {current_arch.function_parameters[idx]}"""
             try:
                 val = gdb.parse_and_eval(expr)
@@ -416,6 +426,7 @@ class GEFDecompilerClient(DecompilerClient):
                 #gdb.execute(f'set ${arg["name"]} NA')
 
         for offset, stack_var in stack_vars.items():
+            offset = int(offset, 0)
             if "__" in  stack_var["type"]:
                 stack_var["type"] = stack_var["type"].replace("__", "")
                 idx = stack_var["type"].find("[")
@@ -454,24 +465,31 @@ class DecompilerCTXPane:
         self.stop_global_import = False
 
     def update_event(self, pc):
+        rebased_pc = rebase_addr(pc)
+
         # update all known function names
         self.decompiler.update_function_headers()
 
+        # TODO: update all globals on each break
+
         # decompile the current pc location
         try:
-            resp = self.decompiler.decompile(pc)
+            resp = self.decompiler.decompile(rebased_pc)
         except Exception as e:
+            warn(f"FAILED on {e}")
             return False
 
+        # set the decompilation for next use in display_pane
         decompilation = resp['decompilation']
         if not decompilation:
+            warn("NO DECOMP PRESENT")
             return False
         self.decomp_lines = decompilation
-        self.curr_line = resp["line"]
+        self.curr_line = resp["curr_line"]
         self.curr_func = resp["func_name"]
 
-        # update the data known in the function
-        self.decompiler.update_function_data()
+        # update the data known in the function (stack variables)
+        self.decompiler.update_function_data(rebased_pc)
         return True
 
     def display_pane(self):
@@ -563,16 +581,38 @@ class DecompilerCommand(GenericCommand):
             self._handler_failed("command does not exist")
 
     def _handle_connect(self, args):
-        if len(args) != 1:
+        if len(args) < 1:
             self._handler_failed("not enough args")
             return
 
-        connected = _decompiler_.connect(name=args[0], host="10.211.55.2")
+        name = args[0]
+        host = "localhost"
+        port = 3662
+
+        if len(args) > 1:
+            try:
+                port_ = int(args[1])
+                port = port_
+            except ValueError:
+                host = args[1]
+
+        if len(args) > 2:
+            try:
+                port_ = int(args[2])
+                port = port_
+            except ValueError:
+                host = args[2]
+
+        connected = _decompiler_.connect(name=args[0], host=host, port=port)
         if not connected:
             err("Failed to connect to decompiler!")
             return
 
         info("Connected to decompiler!")
+
+        # do imports on first connect
+        _decompiler_.update_global_vars()
+        _decompiler_.update_function_headers()
 
         # register the context_pane after connection
         register_external_context_pane("decompilation", _decompiler_ctx_pane_.display_pane, _decompiler_ctx_pane_.title)
@@ -606,11 +646,13 @@ class DecompilerCommand(GenericCommand):
         Usage: decompiler <command>
 
         Commands:
-            [] connect <name>
-                Connects the decomp2gef plugin to the decompiler. After a succesful connect, a decompilation pane
+            [] connect <name> (host) (port)
+                Connects the decomp2gef plugin to the decompiler. After a successful connect, a decompilation pane
                 will be visible that will get updated with global decompiler info on each break-like event.
                 
                 * name = name of the decompiler, can be anything
+                * host = host of the decompiler; will be 'localhost' if not defined
+                * port = port of the decompiler; will be 3662 if not defined
 
             [] disconnect
                 Disconnects the decomp2gef plugin. Not needed to stop decompiler, but useful.
