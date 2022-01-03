@@ -7,7 +7,7 @@ help of the [GEF](https://github.com/hugsy/gef) plugin.
 
 ## Install (script/fast)
 The easiest and fastest way to install is using the `install.sh` script!
-```
+```bash
 ./install.sh --ida /path/to/ida/plugins
 ```
 
@@ -20,12 +20,12 @@ If you only need the decompiler side of things, copy the associated decompiler p
 decompiler's plugin folder. Here is how you do it in IDA:
 
 Copy all the files in `./decompilers/d2g_ida/` into your ida `plugins` folder:
-```
+```bash
 cp -r ./decompilers/d2g_ida/* /path/to/ida/plugins/
 ```
 
 If you also need to install the gdb side of things, use the line below: 
-```
+```bash
 pip3 install . && \
 cp decomp2gef.py ~/.decomp2gef.py && echo "source ~/.decomp2gef.py" >> ~/.gdbinit
 ```
@@ -61,11 +61,11 @@ the break address.
 ### Functions and Global Vars
 Functions and Global Vars from your decompilation are now mapped into your GDB like normal Source-level 
 symbols. This means normal GDB commands like printing and examination are native:
-```
+```bash
 b sub_46340
 x/10i sub_46340
 ```
-```
+```bash
 p off_261C20 
 x off_261C20 
 ```
@@ -74,18 +74,18 @@ x off_261C20
 Some variables that are stored locally in a function are stack variables. For the vars that can be mapped
 to the stack, we import them as convenience variables. You can see their contents like a normal GDB convenience
 variable:
-```
+```bash 
 p $v4
 ```
 
 Stack variables will always store their address on the stack. To see what value is actually in that stack variable,
 simply dereference the variable:
-```
+```bash
 x $v4
 ```
 
 This also works with function arguments if applicable (mileage may vary):
-```
+```bash
 p $a1
 ```
 
