@@ -1,28 +1,31 @@
 # decomp2gef
-A plugin to introduce a generic API for Decompiler support in GEF. Like GEF, the plugin
-is battery-included and requires no external dependencies other than Python. 
+A plugin to introduce a generic API for decompiler usage and syncing in GDB with the 
+help of the [GEF](https://github.com/hugsy/gef) plugin.
 
 ![decomp2gef](./assets/decomp2gef.png)
 [Demo viewable here.](https://asciinema.org/a/442740)
 
-## Quick Start
-First, install the decomp2gef plugin into gef:
+## Installing
+First, install decomp2gef deps with pip:
+```bash
+pip3 install decomp2gef
+```
+
+Next, install the decomp2gef plugin into GEF:
 ```bash
 cp decomp2gef.py ~/.decomp2gef.py && echo "source ~/.decomp2gef.py" >> ~/.gdbinit
 ```
-Alternatively, you can load it for one-time-use inside gdb with:
-```bash 
-source /path/to/decomp2gef.py
+
+Finally, install the plugin into your decompiler of choice using the files in `./decompiler`.
+### IDA
+Copy all the files in `./decompilers/d2g_ida/` into your ida `plugins` folder:
+```
+cp -r ./decompilers/d2g_ida/* /path/to/ida/plugins/
 ```
 
-Now import the relevant script for you decompiler:
-
-### IDA
-- open IDA on your binary and press Alt-F7
-- popup "Run Script" will appear, load the `decomp2gef_ida.py` script from this repo
-
-Now use the `decompiler connect` command in GDB. Note: you must be in a current session
-of debugging something.
+If you are looking for a no-dependencies plugin, you can use the old
+[simple_install](https://github.com/mahaloz/decomp2gef/tree/simple_install) branch which is
+simpler to install, but has fewer features. 
 
 ## Usage 
 In gdb, run:
@@ -62,8 +65,3 @@ Knowledge of REAs can be used to do lots of things, like [sync REAs across decom
 create a common interface for a debugger to display decompilation information. GEF is currently
 one of the best gdb upgrades making it a perfect place to first implement this idea. In the future,
 it should be easily transferable to any debugger supporting python3.
-
-## Adding your decompiler
-
-To add your decompiler, simply make a Python XMLRPC server that implements the 4 server functions
-found in the `decomp2gef` Decompiler class. Follow the code for how to return correct types.

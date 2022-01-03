@@ -16,15 +16,15 @@
 # or decoding, look in the Decompiler class.
 #
 
-
 import tempfile
 import textwrap
 import typing
 import xmlrpc.client
 import functools
-import sortedcontainers
 import struct
 import os
+
+import sortedcontainers
 
 from decomp2gef import DecompilerClient
 
