@@ -265,6 +265,11 @@ class IDADecompilerServer:
                 struct_info["members"].append(member_info)
 
             resp["struct_info"].append(struct_info)
+        return resp
+
+    def breakpoints(self):
+        resp = {}
+        return resp
 
     #
     # XMLRPC Server
@@ -289,8 +294,9 @@ class IDADecompilerServer:
         server.register_function(self.function_headers)
         server.register_function(self.function_data)
         server.register_function(self.global_vars)
-        server.register_function(self.structs)
         server.register_function(self.ping)
+        server.register_function(self.structs)
+        server.register_function(self.breakpoints)
         print("[+] Registered decompilation server!")
         while True:
             server.handle_request()
