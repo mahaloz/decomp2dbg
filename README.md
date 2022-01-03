@@ -5,23 +5,32 @@ help of the [GEF](https://github.com/hugsy/gef) plugin.
 ![decomp2gef](./assets/decomp2gef.png)
 [Demo viewable here.](https://asciinema.org/a/442740)
 
-## Installing
-First, install decomp2gef deps with pip:
-```bash
-pip3 install decomp2gef
+## Install (script/fast)
+The easiest and fastest way to install is using the `install.sh` script!
+```
+./install.sh --ida /path/to/ida/plugins
 ```
 
-Next, install the decomp2gef plugin into GEF:
-```bash
-cp decomp2gef.py ~/.decomp2gef.py && echo "source ~/.decomp2gef.py" >> ~/.gdbinit
-```
+Make sure to define the correct option for your decompiler of choice. Use `--help` for more info!
 
-Finally, install the plugin into your decompiler of choice using the files in `./decompiler`.
-### IDA
+## Install (manual)
+If you can't use the script (non-WSL Windows install for the decompiler), follow the steps below: 
+
+If you only need the decompiler side of things, copy the associated decompiler plugin to the
+decompiler's plugin folder. Here is how you do it in IDA:
+
 Copy all the files in `./decompilers/d2g_ida/` into your ida `plugins` folder:
 ```
 cp -r ./decompilers/d2g_ida/* /path/to/ida/plugins/
 ```
+
+If you also need to install the gdb side of things, use the line below: 
+```
+pip3 install . && \
+cp decomp2gef.py ~/.decomp2gef.py && echo "source ~/.decomp2gef.py" >> ~/.gdbinit
+```
+
+## Simpler Install
 
 If you are looking for a no-dependencies plugin, you can use the old
 [simple_install](https://github.com/mahaloz/decomp2gef/tree/simple_install) branch which is
@@ -30,27 +39,68 @@ simpler to install, but has fewer features.
 ## Usage 
 In gdb, run:
 ```bash
-decompiler connect ida
+decompiler connect <decompiler_name>
 ```
 
+If you are running the decompiler on a VM or different machine, you can optionally provide the host and 
+port to connect to. Here is an example:
+```bash
+decompiler connect ida 10.211.55.2 3662
+```
+
+First connection can take up to 30 seconds to register depending on the amount of globals in the binary.
 If all is well, you should see:
 ```bash
 [+] Connected to decompiler!
 ```
 
-Now just use GEF like normal and enjoy decompilation and decompiler symbol mapping!
-When you change a symbol in ida, like a function name, if will be automatically reflected in 
-gdb after just 2 steps!
+### Decompilation View
+On each breakpoint event, you will now see decompilation printed, and the line you are on associated with
+the break address. 
+
+### Functions and Global Vars
+Functions and Global Vars from your decompilation are now mapped into your GDB like normal Source-level 
+symbols. This means normal GDB commands like printing and examination are native:
+```
+b sub_46340
+x/10i sub_46340
+```
+```
+p off_261C20 
+x off_261C20 
+```
+
+### Stack Variables and Function Args
+Some variables that are stored locally in a function are stack variables. For the vars that can be mapped
+to the stack, we import them as convenience variables. You can see their contents like a normal GDB convenience
+variable:
+```
+p $v4
+```
+
+Stack variables will always store their address on the stack. To see what value is actually in that stack variable,
+simply dereference the variable:
+```
+x $v4
+```
+
+This also works with function arguments if applicable (mileage may vary):
+```
+p $a1
+```
+
+Note: `$v4` in this case will only be mapped for as long as you are in the same function. Once you leave the function
+it may be unmapped or remapped to another value.
 
 ## Features 
 - [X] Auto-updating decompilation context view
 - [X] Auto-syncing function names
 - [X] Breakable/Inspectable symbols
-- [ ] Auto-syncing stack variable names
+- [X] Auto-syncing stack variable names
 - [ ] Auto-syncing structs
 
 ## Abstract
-The reverse engineering process often involves a decompiler making it fundamental to
+The reverse engineering process often involves a decompiler, making it fundamental to
 support in a debugger since context switching knowledge between the two is hard. Decompilers
 have a lot in common. During the reversing process there are reverse engineering artifacts (REA).
 These REAs are common across all decompilers:
@@ -58,7 +108,7 @@ These REAs are common across all decompilers:
 - global variables
 - structs
 - enums
-- function headers (name and prototype)
+- function headers (name, ret type, args)
 - comments
 
 Knowledge of REAs can be used to do lots of things, like [sync REAs across decompilers](https://github.com/angr/binsync) or

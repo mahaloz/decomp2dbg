@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
     name='decomp2gef',
-    version='0.0.0',
+    version='1.1.0',
     packages=packages,
     install_requires=[
         "sortedcontainers",
