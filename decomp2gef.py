@@ -616,26 +616,6 @@ class DecompilerCommand(GenericCommand):
         _decompiler_.disconnect()
         info("Disconnected decompiler!")
 
-    @only_if_decompiler_connected
-    def _handle_global_info(self, args):
-        if len(args) != 1:
-            self._handler_failed("not enough args")
-            return
-
-        op = args[0]
-
-        # import global info
-        if op == "import":
-            _decompiler_.get_and_set_global_info()
-            return
-
-        if op == "status":
-            gef_print("======= Decompiler Symbol Info =======")
-            gef_print("Imported {:d} symbols".format(len(_decomp_sym_tab_._sym_to_addr_tbl)))
-            for sym, addr in _decomp_sym_tab_._sym_to_addr_tbl.items():
-                gef_print("{:s}@0x{:x}".format(sym, addr))
-            gef_print("======= END Decompiler Symbol Info =======")
-
     def _handle_help(self, args):
         usage_str = """\
         Usage: decompiler <command>
@@ -652,20 +632,9 @@ class DecompilerCommand(GenericCommand):
             [] disconnect
                 Disconnects the decomp2gef plugin. Not needed to stop decompiler, but useful.
 
-            [] global_info [import | status]
-                Does operations on the global_info present in the decompiler. Things like function names, global
-                symbols, and structs. Only use this when you think the displayed symbols are wrong.
-
-                - import
-                    Imports the global info from the decompiler and sets it in GDB. Take 2 steps to be visible. 
-
-                - status
-                    Shows all the symbols currently loaded in the symbol map if native support is not on. Only
-                    use when native symbol support is disabled.
-
         Examples:
             decompiler connect ida
-            decompiler global_info import
+            decompiler connect binja 192.168.15 3662
             decompiler disconnect
 
         """
