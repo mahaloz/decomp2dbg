@@ -35,8 +35,8 @@ Please only use this script inside the decomp2gef repo directory.
 exit 1
 }
 
+LOC="$(realpath .)"
 validate_in_decomp2gef() {
-    LOC="$(realpath .)"
     if test -f "${LOC}/decomp2gef.py"; then
         :
     else
@@ -52,15 +52,15 @@ version() {
 }
 
 install_ida() {
-    if [ -z ${LINK} ]; then
+    if [ -z "${LINK}" ]; then
         echo "INSTALLING: IDA plugin without linking to ${IDA_PATH}"
-        cp -r ./decompilers/d2g_ida/* "$IDA_PATH" && \
+        cp -r "${LOC}/decompilers/d2g_ida/*" "$IDA_PATH" && \
         echo "IDA install was successful!" && \
         return
     else
         echo "INSTALLING: IDA plugin WITH linking to ${IDA_PATH}"
-        ln -s ./decompilers/d2g_ida/decomp2gef_ida.py "$IDA_PATH" && \
-        ln -s ./decompilers/d2g_ida/d2g_ida/ "$IDA_PATH" && \
+        ln -s "${LOC}/decompilers/d2g_ida/decomp2gef_ida.py" "$IDA_PATH" && \
+        ln -s "${LOC}/decompilers/d2g_ida/d2g_ida/" "$IDA_PATH" && \
         echo "IDA install was successful!" && \
         return
     fi
@@ -72,14 +72,14 @@ install_binja() {
 }
 
 install_angr() {
-    if [ -z ${LINK} ]; then
+    if [ -z "${LINK}" ]; then
         echo "INSTALLING: angr plugin without linking to ${ANGR_PATH}"
-        cp -r ./decompilers/d2g_angr/ "$ANGR_PATH" && \
+        cp -r "${LOC}/decompilers/d2g_angr/" "$ANGR_PATH" && \
         echo "angr install was successful!" && \
         return
     else
         echo "INSTALLING: angr plugin WITH linking to ${ANGR_PATH}"
-        ln -s ./decompilers/d2g_angr/ "$ANGR_PATH" && \
+        ln -s "${LOC}/decompilers/d2g_angr/" "$ANGR_PATH" && \
         echo "angr install was successful!" && \
         return
     fi
@@ -88,15 +88,15 @@ install_angr() {
 
 install_client() {
     pip3 install .
-    if [ -z ${LINK} ]; then
+    if [ -z "${LINK}" ]; then
         echo "INSTALLING: gdb client without linking."
-        cp decomp2gef.py ~/.decomp2gef.py && \
+        cp "${LOC}/decomp2gef.py" ~/.decomp2gef.py && \
         echo "source ~/.decomp2gef.py" >> ~/.gdbinit && \
         echo "gdb client install was successful!"
         return
     else
         echo "INSTALLING: gdb client WITH linking."
-        ln -s decomp2gef.py ~/.decomp2gef.py && \
+        ln -s "${LOC}/decomp2gef.py" ~/.decomp2gef.py && \
         echo "source ~/.decomp2gef.py" >> ~/.gdbinit && \
         echo "gdb client install was successful!"
         return
@@ -154,23 +154,23 @@ done
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
 if [[ -n $1 ]]; then
-    echo "NOTHING"
+    print_help
 else
-    if [ ! -z ${SHOW_HELP} ]; then
+    if [ -n "${SHOW_HELP}" ]; then
         print_help
-    elif [ ! -z ${SHOW_VERSION} ]; then
+    elif [ -n "${SHOW_VERSION}" ]; then
         version
         exit 0
     fi
     
     # decompilers  
-    if [ ! -z ${IDA_PATH} ]; then
+    if [ -n "${IDA_PATH}" ]; then
         install_ida
     fi
-    if [ ! -z ${BINJA_PATH} ]; then
+    if [ -n "${BINJA_PATH}" ]; then
         install_binja
     fi
-    if [ ! -z ${ANGR_PATH} ]; then
+    if [ -n "${ANGR_PATH}" ]; then
         install_angr
     fi
     

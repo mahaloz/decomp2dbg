@@ -19,7 +19,6 @@
 import tempfile
 import textwrap
 import typing
-import xmlrpc.client
 import functools
 import struct
 import os
@@ -116,14 +115,12 @@ class SymbolMapper:
         self._objcopy = None
         self._gcc = None
 
-
     #
     # Public API for mapping
     #
 
     def items(self):
         return self._symmap.items()
-
 
     def add_mapping(self, start_pos, length, sym):
         # duplication check
@@ -138,7 +135,6 @@ class SymbolMapper:
         self._sym_to_addr_tbl[sym] = start_pos
         self._symmap[start_pos] = SymbolMapElement(start_pos, length, sym)
 
-
     def rename_symbol(self, symbol: str):
         sym_addr = self.lookup_addr_from_symbol(symbol)
         if not sym_addr:
@@ -148,7 +144,6 @@ class SymbolMapper:
         element.sym = sym_addr
         self._sym_to_addr_tbl[symbol] = sym_addr
         return True
-
 
     def lookup_addr_from_symbol(self, symbol: str):
         try:
