@@ -16,16 +16,16 @@
 # or decoding, look in the Decompiler class.
 #
 
-
 import tempfile
 import textwrap
 import typing
-import xmlrpc.client
 import functools
-import sortedcontainers
 import struct
 import os
 
+import sortedcontainers
+
+from decomp2gef import DecompilerClient
 
 #
 # Helper Functions
@@ -91,7 +91,7 @@ class SymbolMapElement:
         return "<%d-%d: %s>" % (self.start, self.start + self.length, self.sym)
 
 
-class SymbolMap:
+class SymbolMapper:
     """
     A binary search dict implementation for ranges. Symbols will map for a range and we need to
     be able to lookup addresses in the middle of the range fast
@@ -102,7 +102,9 @@ class SymbolMap:
         '_sym_to_addr_tbl',
         '_elf_cache',
         '_objcopy',
-        '_gcc'
+        '_gcc',
+        '_last_sym_files',
+        '_sym_file_ctr'
     )
 
     DUPLICATION_CHECK = False
@@ -114,6 +116,8 @@ class SymbolMap:
         self._elf_cache = {}
         self._objcopy = None
         self._gcc = None
+        self._last_sym_files = set()
+        self._sym_file_ctr = 0
 
     #
     # Public API for mapping
@@ -198,14 +202,15 @@ class SymbolMap:
             info("If you are on Linux and want native symbol support make sure you have gcc and objcopy.")
             return False
 
-        #info("{:d} symbols will be added".format(len(sym_info_list)))
+        # info("{:d} symbols will be added".format(len(sym_info_list)))
+        self._delete_old_sym_files()
 
         # locate the base address of the binary
         vmmap = get_process_maps()
         text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
 
         # add each symbol into a mass symbol commit
-        max_commit_size = 1000
+        max_commit_size = 1500
         supported_types = ["function", "object"]
 
         objcopy_cmds = []
@@ -217,7 +222,7 @@ class SymbolMap:
                 continue
 
             # queue the sym for later use
-            queued_sym_sizes[i] = size
+            queued_sym_sizes[i % max_commit_size] = size
 
             # absolute addressing
             if addr >= text_base:
@@ -234,12 +239,12 @@ class SymbolMap:
             )
 
             # batch commit
-            if i > 1 and not i % max_commit_size:
+            if i > 1 and i % max_commit_size == 0:
                 # add the queued symbols
                 self._add_symbol_file(fname, objcopy_cmds, text_base, queued_sym_sizes)
 
                 # re-init queues and elf
-                fname = self._construct_small_elf(text_base)
+                fname = self._construct_small_elf()
                 objcopy_cmds = []
                 queued_sym_sizes = {}
 
@@ -260,15 +265,29 @@ class SymbolMap:
 
         return True
 
+    def _delete_old_sym_files(self):
+        for sym_file in self._last_sym_files:
+            try:
+                gdb.execute(f"remove-symbol-file {sym_file}")
+            except Exception as e:
+                pass
+
+        self._last_sym_files = set()
+        self._sym_file_ctr = 0
+
     def _construct_small_elf(self):
         if self._elf_cache:
-            open(self._elf_cache["fname"], "wb").write(self._elf_cache["data"])
-            return self._elf_cache["fname"]
+            new_name = self._elf_cache["fname"]+str(self._sym_file_ctr)
+            open(new_name, "wb").write(self._elf_cache["data"])
+            self._sym_file_ctr += 1
+            self._last_sym_files.add(new_name)
+            return new_name
 
         # compile a small elf for symbol loading
         fd, fname = tempfile.mkstemp(dir="/tmp", suffix=".c")
+        self._last_sym_files.add(fname)
         os.fdopen(fd, "w").write("int main() {}")
-        #os.system(f"{self._gcc} {fname} -no-pie -o {fname}.debug")
+        # os.system(f"{self._gcc} {fname} -no-pie -o {fname}.debug")
         os.system(f"{self._gcc} {fname} -o {fname}.debug")
         # destroy the source file
         os.unlink(f"{fname}")
@@ -299,7 +318,7 @@ class SymbolMap:
         patch = struct.pack("<Q", new_size)
         size_off = len(elf_rev) - size_off - 1
 
-        elf_data[size_off:size_off+len(patch)] = patch
+        elf_data[size_off:size_off + len(patch)] = patch
         return elf_data
 
     def _force_update_sym_sizes(self, fname, queued_sym_sizes):
@@ -339,12 +358,6 @@ class SymbolMap:
         open(fname, "wb").write(elf_data)
 
     def _add_symbol_file(self, fname, cmd_string_arr, text_base, queued_sym_sizes):
-        # first delete any possible symbol files
-        try:
-            gdb.execute("remove-symbol-file -a {:#x}".format(text_base))
-        except Exception:
-            pass
-
         # add the symbols through copying
         cmd_string = ' '.join(cmd_string_arr)
         os.system(f"{self._objcopy} {cmd_string} {fname}")
@@ -358,196 +371,92 @@ class SymbolMap:
         return
 
 
-_decomp_sym_tab_ = SymbolMap()
-
+_decomp_sym_tab_ = SymbolMapper()
 
 #
 # Generic Decompiler Interface
 #
 
-class Decompiler:
+
+class GEFDecompilerClient(DecompilerClient):
     def __init__(self, name="decompiler", host="127.0.0.1", port=3662):
-        self.name = name
-        self.host = host
-        self.port = port
-        self.server = None
-        self.native_symbol_support = True
+        super(GEFDecompilerClient, self).__init__(name=name, host=host, port=port)
 
-    #
-    # Server Ops
-    #
-
-    @property
-    def connected(self):
-        return True if self.server else False
-
-    def connect(self, name="decompiler", host="127.0.0.1", port=3662) -> bool:
-        """
-        Connects to the remote decompiler.
-        """
-        self.name = name
-        self.host = host
-        self.port = port
-
-        # create a decompiler server connection and test it
-        try:
-            self.server = xmlrpc.client.ServerProxy("http://{:s}:{:d}".format(host, port))
-            self.server.ping()
-        except (ConnectionRefusedError, AttributeError) as e:
-            self.server = None
-            return False
-
-        # import global symbols for the first time
-        self.native_symbol_support = _decomp_sym_tab_.check_native_symbol_support()
-        worked = self.get_and_set_global_info()
-        if not worked:
-            info(f"Native symbol support failed for the above reasons, switching to non-native support.")
-            self.native_symbol_support = False
-
-        return True
-
-    @only_if_decompiler_connected
-    def disconnect(self):
-        try:
-            self.server.disconnect()
-        except Exception:
-            pass
-
-        self.server = None
-
-    #
-    # Decompilation Server Requests
-    #
-
-    def global_info(self):
-        """
-        Will get the global information associated with the decompiler. Things like:
-        - [X] function headers
-        - [ ] structs
-        - [ ] enums
-
-        Return format:
-        {
-            "function_headers":
-            {
-                "<some_func_name>":
-                {
-                    "name": str
-                    "base_addr": int
-                    "size": int
-                }
-            }
-        }
-        """
-        return self.server.global_info()
-
-    @only_if_decompiler_connected
-    def decompile(self, addr) -> typing.Dict:
-        """
-        Decompiles an address that may be in a function boundary. Returns a dict like the following:
-        {
-            "code": Optional[List[str]],
-            "func_name": str,
-            "line": int
-        }
-
-        Code should be the full decompilation of the function the address is within. If not in a function, None is
-        also acceptable.
-        """
-        return self.server.decompile(rebase_addr(addr))
-
-    @only_if_decompiler_connected
-    def get_stack_vars(self, addr) -> typing.Dict:
-        """
-        Gets all the stack vars associated with the function addr is in. If addr is not in a function, will return None
-        for the function addr. Returns a dict like the following:
-        {
-            "func_addr": Optional[str],
-            "members":
-            [
-                {
-                    "offset": int,
-                    "name": str,
-                    "size": int,
-                    "type": str
-                }
-            ]
-        }
-
-        All offsets will be negative offsets of the base pointer.
-        """
-        return self.server.get_stack_vars(rebase_addr(addr))
-
-    @only_if_decompiler_connected
-    def get_structs(self) -> typing.List[typing.Dict]:
-        """
-        Gets all the structs defined by the decompiler or user. Returns a dict like the following:
-        [
-            {
-                "struct_name": str,
-                "size": int,
-                "members":
-                [
-                    {
-                        "offset": int,
-                        "name": str,
-                        "size": int,
-                        "type": str
-                    }
-                ]
-            }
-            ...
-        ]
-        """
-        return self.server.get_structs()
-
-    @only_if_decompiler_connected
-    def set_comment(self, cmt, addr, decompilation=False) -> bool:
-        """
-        Sets a comment in either disassembly or decompilation based on the address.
-        Returns whether it was successful or not.
-        """
-        return self.server.set_comment(cmt, rebase_addr(addr), decompilation)
-
-    #
-    # GDB Info Setters
-    #
-
-    def get_and_set_global_info(self):
-        try:
-            resp = self.global_info()
-        except Exception as e:
-            err("Failed to get globals from server {}".format(e))
-            return False
-
-        funcs_info = resp['function_headers']
+    def update_symbols(self):
+        global_vars, func_headers = self.update_global_vars(), self.update_function_headers()
+        syms_to_add = []
+        global_var_size = 8
 
         # add symbols with native support if possible
-        if self.native_symbol_support:
-            funcs_to_add = []
-            for _, func_info in funcs_info.items():
-                funcs_to_add.append((func_info["name"], func_info["base_addr"], "function", func_info["size"]))
+        if self.native_sym_support:
+            for addr, func in func_headers.items():
+                syms_to_add.append((func["name"], int(addr, 0), "function", func["size"]))
+
+            for addr, global_var in global_vars.items():
+                syms_to_add.append((global_var["name"], int(addr, 0), "object", global_var_size))
 
             try:
-                _decomp_sym_tab_.add_native_symbols(funcs_to_add)
+                _decomp_sym_tab_.add_native_symbols(syms_to_add)
             except Exception as e:
                 err("Failed to set symbols natively: {}".format(e))
-                self.native_symbol_support = False
+                self.native_sym_support = False
                 return False
 
             return True
 
         # no native symbol support, add through GEF override
-        for _, func_info in funcs_info.items():
+        global_vars.update(func_headers)
+        all_syms = global_vars
+        for addr, info in all_syms.items():
             _decomp_sym_tab_.add_mapping(
-                func_info["base_addr"],
-                func_info["size"],
-                func_info["name"]
+                int(addr, 0),
+                info["size"],
+                info["name"]
             )
         return True
 
+    def update_global_vars(self):
+        return self.global_vars
 
-_decompiler_ = Decompiler()
+    def update_function_headers(self):
+        return self.function_headers
+
+    def update_function_data(self, addr):
+        func_data = self.function_data(addr)
+        args = func_data["args"]
+        stack_vars = func_data["stack_vars"]
+
+        for idx, arg in args.items():
+            idx = int(idx, 0)
+            expr = f"""(({arg['type']}) {current_arch.function_parameters[idx]}"""
+            try:
+                val = gdb.parse_and_eval(expr)
+                gdb.execute(f"set ${arg['name']} {val}")
+            except Exception as e:
+                pass
+                #gdb.execute(f'set ${arg["name"]} NA')
+
+        for offset, stack_var in stack_vars.items():
+            offset = int(offset, 0)
+            if "__" in  stack_var["type"]:
+                stack_var["type"] = stack_var["type"].replace("__", "")
+                idx = stack_var["type"].find("[")
+                if idx != -1:
+                    stack_var["type"] = stack_var["type"][:idx] + "_t" + stack_var["type"][idx:]
+                else:
+                    stack_var["type"] += "_t"
+            stack_var["type"] = stack_var["type"].replace("unsigned ", "u")
+
+            expr = f"""({stack_var['type']}*) ($fp -  {offset})"""
+
+            try:
+                gdb.execute(f"set ${stack_var['name']} = " + expr)
+            except Exception as e:
+                gdb.execute(f"set ${stack_var['name']} = ($fp - {offset})")
+
+
+
+_decompiler_ = GEFDecompilerClient()
 
 
 #
@@ -556,78 +465,41 @@ _decompiler_ = Decompiler()
 
 class DecompilerCTXPane:
     def __init__(self, decompiler):
-        self.decompiler = decompiler
+        self.decompiler: GEFDecompilerClient = decompiler
 
         self.ready_to_display = False
         self.decomp_lines = []
         self.curr_line = -1
         self.curr_func = ""
-        self.lvars = []
-        self.args = []
 
         # XXX: this needs to be removed in the future
         self.stop_global_import = False
 
-        # XXX: this needs to be removed in the future
-        self.stop_global_import = False
+    def update_event(self, pc):
+        rebased_pc = rebase_addr(pc)
 
-    def _decompile_cur_pc(self, pc):
-        # update global info
-        if not self.stop_global_import:
-            try:
-                self.decompiler.get_and_set_global_info()
-            except Exception:
-                err("Decompiler failed to import global symbols")
-                self.stop_global_import = True
+        # update all known function names
+        self.decompiler.update_symbols()
 
-        # decompile PC
+        # decompile the current pc location
         try:
-            resp = self.decompiler.decompile(pc)
+            resp = self.decompiler.decompile(rebased_pc)
         except Exception as e:
+            warn(f"FAILED on {e}")
             return False
 
-        code = resp['code']
-        if not code:
+        # set the decompilation for next use in display_pane
+        decompilation = resp['decompilation']
+        if not decompilation:
+            warn("NO DECOMP PRESENT")
             return False
-
-        self.decomp_lines = code
+        self.decomp_lines = decompilation
+        self.curr_line = resp["curr_line"]
         self.curr_func = resp["func_name"]
-        self.curr_line = resp["line"]
-        self.lvars = resp["lvars"]
-        self.args = resp["args"]
 
-        self.set_local_vars(pc)
-
+        # update the data known in the function (stack variables)
+        self.decompiler.update_function_data(rebased_pc)
         return True
-
-    def set_local_vars(self, pc):
-
-        for arg in self.args:
-            expr = f"""(({arg['type']}) {current_arch.function_parameters[arg['index']]}"""
-            try:
-                val = gdb.parse_and_eval(expr)
-                gdb.execute(f"set ${arg['name']} {val}")
-            except Exception as e:
-                pass
-                #gdb.execute(f'set ${arg["name"]} NA')
-
-        for lvar in self.lvars:
-            if "__" in  lvar["type"]:
-                lvar["type"] = lvar["type"].replace("__", "")
-                idx = lvar["type"].find("[")
-                if idx != -1:
-                    lvar["type"] = lvar["type"][:idx] + "_t" + lvar["type"][idx:]
-                else:
-                    lvar["type"] += "_t"
-            lvar["type"] = lvar["type"].replace("unsigned ", "u")
-
-            expr = f"""({lvar['type']}*) ($fp -  {lvar['offset']})"""
-
-            try:
-                gdb.execute(f"set ${lvar['name']} = " + expr)
-            except Exception as e:
-                gdb.execute(f"set ${lvar['name']} = ($fp - {lvar['offset']})")
-
 
     def display_pane(self):
         """
@@ -673,7 +545,7 @@ class DecompilerCTXPane:
         if not self.decompiler.connected:
             return None
 
-        self.ready_to_display = self._decompile_cur_pc(current_arch.pc)
+        self.ready_to_display = self.update_event(current_arch.pc)
 
         if self.ready_to_display:
             title = "decompiler:{:s}:{:s}:{:d}".format(self.decompiler.name, self.curr_func, self.curr_line+1)
@@ -718,16 +590,37 @@ class DecompilerCommand(GenericCommand):
             self._handler_failed("command does not exist")
 
     def _handle_connect(self, args):
-        if len(args) != 1:
+        if len(args) < 1:
             self._handler_failed("not enough args")
             return
 
-        connected = _decompiler_.connect(name=args[0])
+        name = args[0]
+        host = "localhost"
+        port = 3662
+
+        if len(args) > 1:
+            try:
+                port_ = int(args[1])
+                port = port_
+            except ValueError:
+                host = args[1]
+
+        if len(args) > 2:
+            try:
+                port_ = int(args[2])
+                port = port_
+            except ValueError:
+                host = args[2]
+
+        connected = _decompiler_.connect(name=name, host=host, port=port)
         if not connected:
             err("Failed to connect to decompiler!")
             return
 
         info("Connected to decompiler!")
+
+        # do imports on first connect
+        _decompiler_.update_symbols()
 
         # register the context_pane after connection
         register_external_context_pane("decompilation", _decompiler_ctx_pane_.display_pane, _decompiler_ctx_pane_.title)
@@ -736,54 +629,25 @@ class DecompilerCommand(GenericCommand):
         _decompiler_.disconnect()
         info("Disconnected decompiler!")
 
-    @only_if_decompiler_connected
-    def _handle_global_info(self, args):
-        if len(args) != 1:
-            self._handler_failed("not enough args")
-            return
-
-        op = args[0]
-
-        # import global info
-        if op == "import":
-            _decompiler_.get_and_set_global_info()
-            return
-
-        if op == "status":
-            gef_print("======= Decompiler Symbol Info =======")
-            gef_print("Imported {:d} symbols".format(len(_decomp_sym_tab_._sym_to_addr_tbl)))
-            for sym, addr in _decomp_sym_tab_._sym_to_addr_tbl.items():
-                gef_print("{:s}@0x{:x}".format(sym, addr))
-            gef_print("======= END Decompiler Symbol Info =======")
-
     def _handle_help(self, args):
         usage_str = """\
         Usage: decompiler <command>
 
         Commands:
-            [] connect <name>
-                Connects the decomp2gef plugin to the decompiler. After a succesful connect, a decompilation pane
+            [] connect <name> (host) (port)
+                Connects the decomp2gef plugin to the decompiler. After a successful connect, a decompilation pane
                 will be visible that will get updated with global decompiler info on each break-like event.
                 
                 * name = name of the decompiler, can be anything
+                * host = host of the decompiler; will be 'localhost' if not defined
+                * port = port of the decompiler; will be 3662 if not defined
 
             [] disconnect
                 Disconnects the decomp2gef plugin. Not needed to stop decompiler, but useful.
 
-            [] global_info [import | status]
-                Does operations on the global_info present in the decompiler. Things like function names, global
-                symbols, and structs. Only use this when you think the displayed symbols are wrong.
-
-                - import
-                    Imports the global info from the decompiler and sets it in GDB. Take 2 steps to be visible. 
-
-                - status
-                    Shows all the symbols currently loaded in the symbol map if native support is not on. Only
-                    use when native symbol support is disabled.
-
         Examples:
             decompiler connect ida
-            decompiler global_info import
+            decompiler connect binja 192.168.15 3662
             decompiler disconnect
 
         """
