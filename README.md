@@ -74,8 +74,8 @@ b sub_46340
 x/10i sub_46340
 ```
 ```bash
-p off_261C20 
-x off_261C20 
+p dword_267A2C 
+x dword_267A2C
 ```
 
 ### Stack Variables and Function Args

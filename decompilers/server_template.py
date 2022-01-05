@@ -6,7 +6,7 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
 
 class DecompilerServer:
-    def __init__(self, host="localhost", port=3662):
+    def __init__(self, host=None, port=None):
         self.host = host
         self.port = port
 
@@ -99,13 +99,16 @@ class DecompilerServer:
     def ping(self):
         return True
 
-    def start_xmlrpc_server(self):
+    def start_xmlrpc_server(self, host="localhost", port=3662):
         """
         Initialize the XMLRPC thread.
         """
-        print("[+] Starting XMLRPC server: {}:{}".format(self.host, self.port))
+        host = host or self.host
+        port = port or self.port
+
+        print("[+] Starting XMLRPC server: {}:{}".format(host, port))
         server = SimpleXMLRPCServer(
-            (self.host, self.port),
+            (host, port),
             requestHandler=RequestHandler,
             logRequests=False,
             allow_none=True
@@ -116,6 +119,7 @@ class DecompilerServer:
         server.register_function(self.function_data)
         server.register_function(self.global_vars)
         server.register_function(self.structs)
+        server.register_function(self.breakpoints)
         server.register_function(self.ping)
         print("[+] Registered decompilation server!")
         while True:

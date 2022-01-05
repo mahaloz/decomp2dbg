@@ -142,13 +142,16 @@ class AngrDecompilerServer:
     def ping(self):
         return True
 
-    def start_xmlrpc_server(self):
+    def start_xmlrpc_server(self, host="localhost", port=3662):
         """
         Initialize the XMLRPC thread.
         """
-        print("[+] Starting XMLRPC server: {}:{}".format(self.host, self.port))
+        host = host or self.host
+        port = port or self.port
+
+        print("[+] Starting XMLRPC server: {}:{}".format(host, port))
         server = SimpleXMLRPCServer(
-            (self.host, self.port),
+            (host, port),
             requestHandler=RequestHandler,
             logRequests=False,
             allow_none=True

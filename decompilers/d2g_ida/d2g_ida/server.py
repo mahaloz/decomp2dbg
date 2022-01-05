@@ -76,14 +76,23 @@ def execute_write(func):
 def execute_ui(func):
     return execute_sync(func, idaapi.MFF_FAST)
 
+
 #
 # Decompilation API
 #
 
 class IDADecompilerServer:
-    def __init__(self, host="localhost", port=3662):
+    def __init__(self, host=None, port=None):
         self.host = host
         self.port = port
+        self.cache = {
+            "global_vars": None,
+            "function_headers": None
+        }
+
+        # make the server init cache data once
+        self.function_headers()
+        self.global_vars()
 
     @execute_read
     def decompile(self, addr):
@@ -183,8 +192,13 @@ class IDADecompilerServer:
 
     @execute_read
     def function_headers(self):
-        resp = {}
+        # check if a cache is available
+        cache_headers = self.cache["function_headers"]
+        if cache_headers:
+            return cache_headers
 
+        resp = {}
+        # no cache, compute it
         for f_addr in idautils.Functions():
             # assure the function is not a linked library function
             if not ((idc.get_func_flags(f_addr) & idc.FUNC_LIB) == idc.FUNC_LIB):
@@ -202,27 +216,18 @@ class IDADecompilerServer:
                     "size": func_size
                 }
 
+        self.cache["function_headers"] = resp
         return resp
 
     @execute_read
     def global_vars(self):
-        resp = {}
-        """
-        curr_seg = ida_segment.get_first_seg()
-        while curr_seg:
-            # filter for only data segments
-            if idc.is_data(curr_seg.flags):
-                for seg_ea in range(curr_seg.start_ea, curr_seg.end_ea):
-                    xrefs = idautils.XrefsTo(seg_ea)
-                    # only places with xrefs are actually variables
-                    if xrefs and len(xrefs) > 0:
-                        resp[str(seg_ea)] = {
-                            "name": idaapi.get_name(seg_ea)
-                        }
+        # check if a cache is available
+        cache_globals = self.cache["global_vars"]
+        if cache_globals:
+            return cache_globals
 
-            curr_seg = ida_segment.get_next_seg(curr_seg.start_ea)
-        """
-        known_segs = [".data", ".rodata", ".bss"]
+        resp = {}
+        known_segs = [".data", ".bss"]
         for seg_name in known_segs:
             seg = idaapi.get_segm_by_name(seg_name)
             for seg_ea in range(seg.start_ea, seg.end_ea):
@@ -240,6 +245,7 @@ class IDADecompilerServer:
                     "name": name
                 }
 
+        self.cache["global_vars"] = resp
         return resp
 
     @execute_read
@@ -278,13 +284,16 @@ class IDADecompilerServer:
     def ping(self):
         return True
 
-    def start_xmlrpc_server(self):
+    def start_xmlrpc_server(self, host="localhost", port=3662):
         """
         Initialize the XMLRPC thread.
         """
-        print("[+] Starting XMLRPC server: {}:{}".format(self.host, self.port))
+        host = host or self.host
+        port = port or self.port
+
+        print("[+] Starting XMLRPC server: {}:{}".format(host, port))
         server = SimpleXMLRPCServer(
-            (self.host, self.port),
+            (host, port),
             requestHandler=RequestHandler,
             logRequests=False,
             allow_none=True
@@ -294,9 +303,9 @@ class IDADecompilerServer:
         server.register_function(self.function_headers)
         server.register_function(self.function_data)
         server.register_function(self.global_vars)
-        server.register_function(self.ping)
         server.register_function(self.structs)
         server.register_function(self.breakpoints)
+        server.register_function(self.ping)
         print("[+] Registered decompilation server!")
         while True:
             server.handle_request()

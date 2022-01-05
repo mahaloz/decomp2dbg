@@ -4,18 +4,49 @@ import threading
 from PyQt5.QtCore import QObject
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout
 
-import idaapi
+import idaapi, ida_idp, ida_struct, idc, ida_enum
 
 from .server import IDADecompilerServer
+
+decomp_server: IDADecompilerServer = None
+
+
+#
+# Update Hooks
+#
+
+class IDBHooks(ida_idp.IDB_Hooks):
+    def __init__(self):
+        ida_idp.IDB_Hooks.__init__(self)
+
+    def renamed(self, ea, new_name, local_name):
+        if ida_struct.is_member_id(ea) or ida_struct.get_struc(ea) or ida_enum.get_enum_name(ea):
+            return 0
+
+        # renaming a function header
+        ida_func = idaapi.get_func(ea)
+        if ida_func and ida_func.start_ea == ea:
+            decomp_server.cache["function_headers"][str(ea)]["name"] = new_name
+            return 0
+
+        # assume we are renaming a global var of some sort
+        try:
+            decomp_server.cache["global_vars"][str(ea)]["name"] = new_name
+        except KeyError:
+            # okay its not a global
+            pass
+
+        return 0
+
 
 #
 # UI
 #
 
-
 class ConfigDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, change_hook, parent=None):
         super().__init__(parent)
+        self.change_hook = change_hook
         self.setWindowTitle("Configure Decomp2GEF")
         self._main_layout = QVBoxLayout()
         self._host_edit = None  # type:QLineEdit
@@ -67,6 +98,8 @@ class ConfigDialog(QDialog):
     #
 
     def _on_ok_clicked(self):
+        global decomp_server
+
         host = self._host_edit.text()
         port = self._port_edit.text()
 
@@ -82,11 +115,13 @@ class ConfigDialog(QDialog):
                                        )
             return
 
-        decomp_server = IDADecompilerServer(host, int(port, 0))
-        t = threading.Thread(target=decomp_server.start_xmlrpc_server, args=())
+        decomp_server = IDADecompilerServer()
+        t = threading.Thread(target=decomp_server.start_xmlrpc_server, kwargs={'host': host, 'port': int(port)})
         t.daemon = True
         try:
             t.start()
+            # start hooks on good connection
+            self.change_hook.hook()
         except Exception as e:
             QMessageBox(self).critical(None, "Error starting Decomp2GEF Server", str(e))
             traceback.print_exc()
@@ -123,6 +158,7 @@ class Decomp2GEFPlugin(QObject, idaapi.plugin_t):
     def __init__(self, *args, **kwargs):
         QObject.__init__(self, *args, **kwargs)
         idaapi.plugin_t.__init__(self)
+        self.change_hook = IDBHooks()
 
     def init(self):
         return idaapi.PLUGIN_KEEP
@@ -131,7 +167,7 @@ class Decomp2GEFPlugin(QObject, idaapi.plugin_t):
         self.open_config_dialog()
 
     def open_config_dialog(self):
-        dialog = ConfigDialog()
+        dialog = ConfigDialog(self.change_hook)
         dialog.exec_()
 
     def term(self):

@@ -102,7 +102,9 @@ class SymbolMapper:
         '_sym_to_addr_tbl',
         '_elf_cache',
         '_objcopy',
-        '_gcc'
+        '_gcc',
+        '_last_sym_files',
+        '_sym_file_ctr'
     )
 
     DUPLICATION_CHECK = False
@@ -114,6 +116,8 @@ class SymbolMapper:
         self._elf_cache = {}
         self._objcopy = None
         self._gcc = None
+        self._last_sym_files = set()
+        self._sym_file_ctr = 0
 
     #
     # Public API for mapping
@@ -199,13 +203,14 @@ class SymbolMapper:
             return False
 
         # info("{:d} symbols will be added".format(len(sym_info_list)))
+        self._delete_old_sym_files()
 
         # locate the base address of the binary
         vmmap = get_process_maps()
         text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
 
         # add each symbol into a mass symbol commit
-        max_commit_size = 1000
+        max_commit_size = 1500
         supported_types = ["function", "object"]
 
         objcopy_cmds = []
@@ -217,7 +222,7 @@ class SymbolMapper:
                 continue
 
             # queue the sym for later use
-            queued_sym_sizes[i] = size
+            queued_sym_sizes[i % max_commit_size] = size
 
             # absolute addressing
             if addr >= text_base:
@@ -234,12 +239,12 @@ class SymbolMapper:
             )
 
             # batch commit
-            if i > 1 and not i % max_commit_size:
+            if i > 1 and i % max_commit_size == 0:
                 # add the queued symbols
                 self._add_symbol_file(fname, objcopy_cmds, text_base, queued_sym_sizes)
 
                 # re-init queues and elf
-                fname = self._construct_small_elf(text_base)
+                fname = self._construct_small_elf()
                 objcopy_cmds = []
                 queued_sym_sizes = {}
 
@@ -260,13 +265,27 @@ class SymbolMapper:
 
         return True
 
+    def _delete_old_sym_files(self):
+        for sym_file in self._last_sym_files:
+            try:
+                gdb.execute(f"remove-symbol-file {sym_file}")
+            except Exception as e:
+                pass
+
+        self._last_sym_files = set()
+        self._sym_file_ctr = 0
+
     def _construct_small_elf(self):
         if self._elf_cache:
-            open(self._elf_cache["fname"], "wb").write(self._elf_cache["data"])
-            return self._elf_cache["fname"]
+            new_name = self._elf_cache["fname"]+str(self._sym_file_ctr)
+            open(new_name, "wb").write(self._elf_cache["data"])
+            self._sym_file_ctr += 1
+            self._last_sym_files.add(new_name)
+            return new_name
 
         # compile a small elf for symbol loading
         fd, fname = tempfile.mkstemp(dir="/tmp", suffix=".c")
+        self._last_sym_files.add(fname)
         os.fdopen(fd, "w").write("int main() {}")
         # os.system(f"{self._gcc} {fname} -no-pie -o {fname}.debug")
         os.system(f"{self._gcc} {fname} -o {fname}.debug")
@@ -339,12 +358,6 @@ class SymbolMapper:
         open(fname, "wb").write(elf_data)
 
     def _add_symbol_file(self, fname, cmd_string_arr, text_base, queued_sym_sizes):
-        # first delete any possible symbol files
-        try:
-            gdb.execute("remove-symbol-file -a {:#x}".format(text_base))
-        except Exception:
-            pass
-
         # add the symbols through copying
         cmd_string = ' '.join(cmd_string_arr)
         os.system(f"{self._objcopy} {cmd_string} {fname}")
@@ -369,26 +382,21 @@ class GEFDecompilerClient(DecompilerClient):
     def __init__(self, name="decompiler", host="127.0.0.1", port=3662):
         super(GEFDecompilerClient, self).__init__(name=name, host=host, port=port)
 
-    def update_global_vars(self):
-        for addr, global_var in self.global_vars.items():
-            addr = int(addr, 0)
-            try:
-                gdb.execute(f"set ${global_var['name']} = (long long *) {addr}")
-            except Exception as e:
-                warn(f"FAILED GLOBAL VAR: {e}")
-                pass
-
-    def update_function_headers(self):
-        func_headers = self.function_headers
+    def update_symbols(self):
+        global_vars, func_headers = self.update_global_vars(), self.update_function_headers()
+        syms_to_add = []
+        global_var_size = 8
 
         # add symbols with native support if possible
         if self.native_sym_support:
-            funcs_to_add = []
-            for func_addr, info in func_headers.items():
-                funcs_to_add.append((info["name"], int(func_addr, 0), "function", info["size"]))
+            for addr, func in func_headers.items():
+                syms_to_add.append((func["name"], int(addr, 0), "function", func["size"]))
+
+            for addr, global_var in global_vars.items():
+                syms_to_add.append((global_var["name"], int(addr, 0), "object", global_var_size))
 
             try:
-                _decomp_sym_tab_.add_native_symbols(funcs_to_add)
+                _decomp_sym_tab_.add_native_symbols(syms_to_add)
             except Exception as e:
                 err("Failed to set symbols natively: {}".format(e))
                 self.native_sym_support = False
@@ -397,13 +405,21 @@ class GEFDecompilerClient(DecompilerClient):
             return True
 
         # no native symbol support, add through GEF override
-        for func_addr, info in func_headers.items():
+        global_vars.update(func_headers)
+        all_syms = global_vars
+        for addr, info in all_syms.items():
             _decomp_sym_tab_.add_mapping(
-                int(func_addr, 0),
+                int(addr, 0),
                 info["size"],
                 info["name"]
             )
         return True
+
+    def update_global_vars(self):
+        return self.global_vars
+
+    def update_function_headers(self):
+        return self.function_headers
 
     def update_function_data(self, addr):
         func_data = self.function_data(addr)
@@ -449,7 +465,7 @@ _decompiler_ = GEFDecompilerClient()
 
 class DecompilerCTXPane:
     def __init__(self, decompiler):
-        self.decompiler: DecompilerClient = decompiler
+        self.decompiler: GEFDecompilerClient = decompiler
 
         self.ready_to_display = False
         self.decomp_lines = []
@@ -463,9 +479,7 @@ class DecompilerCTXPane:
         rebased_pc = rebase_addr(pc)
 
         # update all known function names
-        self.decompiler.update_function_headers()
-
-        # TODO: update all globals on each break
+        self.decompiler.update_symbols()
 
         # decompile the current pc location
         try:
@@ -598,7 +612,7 @@ class DecompilerCommand(GenericCommand):
             except ValueError:
                 host = args[2]
 
-        connected = _decompiler_.connect(name=args[0], host=host, port=port)
+        connected = _decompiler_.connect(name=name, host=host, port=port)
         if not connected:
             err("Failed to connect to decompiler!")
             return
@@ -606,8 +620,7 @@ class DecompilerCommand(GenericCommand):
         info("Connected to decompiler!")
 
         # do imports on first connect
-        _decompiler_.update_global_vars()
-        _decompiler_.update_function_headers()
+        _decompiler_.update_symbols()
 
         # register the context_pane after connection
         register_external_context_pane("decompilation", _decompiler_ctx_pane_.display_pane, _decompiler_ctx_pane_.title)
