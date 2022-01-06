@@ -285,7 +285,6 @@ class SymbolMapper:
 
         # compile a small elf for symbol loading
         fd, fname = tempfile.mkstemp(dir="/tmp", suffix=".c")
-        self._last_sym_files.add(fname)
         os.fdopen(fd, "w").write("int main() {}")
         # os.system(f"{self._gcc} {fname} -no-pie -o {fname}.debug")
         os.system(f"{self._gcc} {fname} -o {fname}.debug")
@@ -307,6 +306,10 @@ class SymbolMapper:
 
         # cache the small object file for use
         self._elf_cache["fname"] = fname + ".debug"
+
+        # add it to known sym files
+        self._last_sym_files.add(self._elf_cache["fname"])
+
         self._elf_cache["data"] = open(self._elf_cache["fname"], "rb").read()
         return self._elf_cache["fname"]
 
