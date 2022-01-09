@@ -152,6 +152,8 @@ class Decomp2GEFPlugin(QObject, idaapi.plugin_t):
     """Plugin entry point. Does most of the skinning magic."""
 
     flags = idaapi.PLUGIN_FIX
+    comment = "Syncing decompiler info to GDB"
+    help = "Decomp2GEF Help"
     wanted_name = "Decomp2GEF: configure"
     wanted_hotkey = "Ctrl-Shift-D"
 
