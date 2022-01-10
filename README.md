@@ -5,7 +5,7 @@ help of the [GEF](https://github.com/hugsy/gef) plugin.
 ![decomp2gef](./assets/decomp2gef.png)
 [Demo viewable here.](https://asciinema.org/a/442740)
 
-For faster help or conversations on features, join our [BinSync Discord](https://discord.gg/wZSCeXnEvR).
+[![Discord](https://img.shields.io/discord/900841083532087347?label=Discord&style=plastic)](https://discord.gg/wZSCeXnEvR)
 
 ## Install (script/fast)
 The easiest and fastest way to install is using the `install.sh` script!
