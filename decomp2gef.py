@@ -472,7 +472,7 @@ class GEFDecompilerClient(DecompilerClient):
         args = func_data["args"]
         stack_vars = func_data["stack_vars"]
 
-        for idx, arg in args.items():
+        for idx, arg in list(args.items())[:len(current_arch.function_parameters)]:
             idx = int(idx, 0)
             expr = f"""(({arg['type']}) {current_arch.function_parameters[idx]}"""
             try:
