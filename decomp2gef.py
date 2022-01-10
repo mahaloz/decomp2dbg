@@ -221,12 +221,13 @@ class SymbolMapper:
 
         # locate the base address of the binary
         vmmap = get_process_maps()
-        
-        if is_remote_debug():
+ 
+        global downloaded
+        if is_remote_debug() and downloaded == False:
             global hashmap
-            # CHECK IF DOWNLOADED BEFORE!!
+            downloaded = True
             hashmap = {}
-            for path in [x.path for x in vmmap]:
+            for path in set([x.path for x in vmmap]):
                 if path == '' or path == '[heap]' or path == '[stack]':
                     continue
                 out = download_file(path)
@@ -245,7 +246,7 @@ class SymbolMapper:
                     text_base = min(text_base_arr)
         elif not is_remote_debug():
             text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
-        
+
 
 
         # add each symbol into a mass symbol commit
@@ -639,6 +640,8 @@ class DecompilerCommand(GenericCommand):
             self._handler_failed("not enough args")
             return
 
+        global downloaded
+        downloaded = False
         name = args[0]
         host = "localhost"
         port = 3662
@@ -682,7 +685,7 @@ class DecompilerCommand(GenericCommand):
             [] connect <name> (host) (port)
                 Connects the decomp2gef plugin to the decompiler. After a successful connect, a decompilation pane
                 will be visible that will get updated with global decompiler info on each break-like event.
-                
+
                 * name = name of the decompiler, can be anything
                 * host = host of the decompiler; will be 'localhost' if not defined
                 * port = port of the decompiler; will be 3662 if not defined
