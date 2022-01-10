@@ -22,10 +22,11 @@ import typing
 import functools
 import struct
 import os
-
+import hashlib
 import sortedcontainers
 
 from decomp2gef import DecompilerClient
+
 
 #
 # Helper Functions
@@ -40,7 +41,20 @@ def rebase_addr(addr, up=False):
     down -> make an absolute address to an offset
     """
     vmmap = get_process_maps()
-    base_address = min([x.page_start for x in vmmap if x.path.split('/')[-1] == get_filename()])
+
+    if is_remote_debug():
+        file_hash = hashlib.md5(open(get_filepath(),'rb').read()).hexdigest()
+        text_base_arr = []
+        for x in vmmap:
+            if x.path == '' or x.path == '[heap]' or x.path == '[stack]':
+                pass
+            elif hashmap[x.path] == file_hash:
+                text_base_arr.append(x.page_start)
+                text_base = min(text_base_arr)
+
+    elif not is_remote_debug():
+        base_address = min([x.page_start for x in vmmap if x.path == get_filepath()])
+ 
     checksec_status = checksec(get_filepath())
     pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
     corrected_addr = addr
@@ -207,7 +221,32 @@ class SymbolMapper:
 
         # locate the base address of the binary
         vmmap = get_process_maps()
-        text_base = min([x.page_start for x in vmmap if x.path.split('/')[-1] == get_filename()])
+        
+        if is_remote_debug():
+            global hashmap
+            # CHECK IF DOWNLOADED BEFORE!!
+            hashmap = {}
+            for path in [x.path for x in vmmap]:
+                if path == '' or path == '[heap]' or path == '[stack]':
+                    continue
+                out = download_file(path)
+                hashmap[path] = hashlib.md5(open(out,'rb').read()).hexdigest()
+        else:
+            pass
+
+        if is_remote_debug():
+            file_hash = hashlib.md5(open(get_filepath(),'rb').read()).hexdigest()
+            text_base_arr = []
+            for x in vmmap:
+                if x.path == '' or x.path == '[heap]' or x.path == '[stack]':
+                    pass
+                elif hashmap[x.path] == file_hash:
+                    text_base_arr.append(x.page_start)
+                    text_base = min(text_base_arr)
+        elif not is_remote_debug():
+            text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
+        
+
 
         # add each symbol into a mass symbol commit
         max_commit_size = 1500
