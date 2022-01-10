@@ -425,6 +425,9 @@ class GEFDecompilerClient(DecompilerClient):
         return self.function_headers
 
     def update_function_data(self, addr):
+        if current_arch.arch == 'X86':
+            #: ugly hardcoding hack
+            current_arch.function_parameters = [f'$esp+{x}' for x in range(0, 28, 4)]
         func_data = self.function_data(addr)
         args = func_data["args"]
         stack_vars = func_data["stack_vars"]
