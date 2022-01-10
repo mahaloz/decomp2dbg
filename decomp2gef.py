@@ -40,7 +40,7 @@ def rebase_addr(addr, up=False):
     down -> make an absolute address to an offset
     """
     vmmap = get_process_maps()
-    base_address = min([x.page_start for x in vmmap if x.path == get_filepath()])
+    base_address = min([x.page_start for x in vmmap if x.path.split('/')[-1] == get_filename()])
     checksec_status = checksec(get_filepath())
     pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
     corrected_addr = addr
@@ -207,7 +207,7 @@ class SymbolMapper:
 
         # locate the base address of the binary
         vmmap = get_process_maps()
-        text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
+        text_base = min([x.page_start for x in vmmap if x.path.split('/')[-1] == get_filename()])
 
         # add each symbol into a mass symbol commit
         max_commit_size = 1500
