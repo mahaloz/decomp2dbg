@@ -38,7 +38,6 @@ def initialize_vmmap_hashmap():
     Downloads ALL remote files from remote and creates a hashmap
     to be used for comparing and using the correct binary to get
     base_address."""
-
     global hashmap
 
     vmmap = get_process_maps()
