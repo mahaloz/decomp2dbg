@@ -23,6 +23,7 @@ import functools
 import struct
 import os
 import hashlib
+
 import sortedcontainers
 
 from decomp2gef import DecompilerClient
@@ -31,6 +32,43 @@ from decomp2gef import DecompilerClient
 #
 # Helper Functions
 #
+
+def initialize_vmmap_hashmap():
+    """Only to be ran ONCE on remote connections.
+    Downloads ALL remote files from remote and creates a hashmap
+    to be used for comparing and using the correct binary to get
+    base_address."""
+
+    global hashmap
+
+    vmmap = get_process_maps()
+
+    hashmap = {}
+    for path in set([x.path for x in vmmap]):
+        if path == '' or path == '[heap]' or path == '[stack]':
+            continue
+        out = download_file(path)
+        hashmap[path] = hashlib.md5(open(out,'rb').read()).hexdigest()
+
+
+def get_text_base_address(vmmap):
+    """Uses a hashmap to ensure correct text_address is being returned"""
+    global hashmap
+
+    if is_remote_debug():
+        file_hash = hashlib.md5(open(get_filepath(),'rb').read()).hexdigest()
+        text_base_arr = []
+        for x in vmmap:
+            if x.path == '' or x.path == '[heap]' or x.path == '[stack]':
+                pass
+            elif hashmap[x.path] == file_hash:
+                text_base_arr.append(x.page_start)
+                text_base = min(text_base_arr)
+    elif not is_remote_debug():
+        text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
+
+    return text_base
+
 
 def rebase_addr(addr, up=False):
     """
@@ -42,19 +80,8 @@ def rebase_addr(addr, up=False):
     """
     vmmap = get_process_maps()
 
-    if is_remote_debug():
-        file_hash = hashlib.md5(open(get_filepath(),'rb').read()).hexdigest()
-        text_base_arr = []
-        for x in vmmap:
-            if x.path == '' or x.path == '[heap]' or x.path == '[stack]':
-                pass
-            elif hashmap[x.path] == file_hash:
-                text_base_arr.append(x.page_start)
-                text_base = min(text_base_arr)
+    base_address = get_text_base_address(vmmap)
 
-    elif not is_remote_debug():
-        base_address = min([x.page_start for x in vmmap if x.path == get_filepath()])
- 
     checksec_status = checksec(get_filepath())
     pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
     corrected_addr = addr
@@ -221,33 +248,8 @@ class SymbolMapper:
 
         # locate the base address of the binary
         vmmap = get_process_maps()
- 
-        global downloaded
-        if is_remote_debug() and downloaded == False:
-            global hashmap
-            downloaded = True
-            hashmap = {}
-            for path in set([x.path for x in vmmap]):
-                if path == '' or path == '[heap]' or path == '[stack]':
-                    continue
-                out = download_file(path)
-                hashmap[path] = hashlib.md5(open(out,'rb').read()).hexdigest()
-        else:
-            pass
 
-        if is_remote_debug():
-            file_hash = hashlib.md5(open(get_filepath(),'rb').read()).hexdigest()
-            text_base_arr = []
-            for x in vmmap:
-                if x.path == '' or x.path == '[heap]' or x.path == '[stack]':
-                    pass
-                elif hashmap[x.path] == file_hash:
-                    text_base_arr.append(x.page_start)
-                    text_base = min(text_base_arr)
-        elif not is_remote_debug():
-            text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
-
-
+        text_base = get_text_base_address(vmmap)
 
         # add each symbol into a mass symbol commit
         max_commit_size = 1500
@@ -465,9 +467,6 @@ class GEFDecompilerClient(DecompilerClient):
         return self.function_headers
 
     def update_function_data(self, addr):
-        if current_arch.arch == 'X86':
-            #: ugly hardcoding hack
-            current_arch.function_parameters = [f'$esp+{x}' for x in range(0, 28, 4)]
         func_data = self.function_data(addr)
         args = func_data["args"]
         stack_vars = func_data["stack_vars"]
@@ -640,8 +639,6 @@ class DecompilerCommand(GenericCommand):
             self._handler_failed("not enough args")
             return
 
-        global downloaded
-        downloaded = False
         name = args[0]
         host = "localhost"
         port = 3662
@@ -666,6 +663,13 @@ class DecompilerCommand(GenericCommand):
             return
 
         info("Connected to decompiler!")
+
+        # override x86 function_parameters to cater for more function arguments
+        only_if_decompiler_connected(decomp2gef_overrides())
+
+        # if remote, download remote binaries and initialize hashmap
+        if is_remote_debug():
+            initialize_vmmap_hashmap()
 
         # do imports on first connect
         _decompiler_.update_symbols()
@@ -711,6 +715,12 @@ register_external_command(DecompilerCommand())
 #
 # Dirty overrides
 #
+
+def decomp2gef_overrides():
+    """Currently only overrides function parameters for X86 to cater for handling
+    of more than one function parameter when syncing decompilation to debugger."""
+    if current_arch.arch == 'X86':
+        current_arch.function_parameters = [f'$esp+{x}' for x in range(0, 28, 4)]
 
 
 # XXX: globally overwrites the gef function gdb_get_location_from_symbol
