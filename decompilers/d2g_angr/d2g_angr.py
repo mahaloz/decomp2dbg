@@ -94,8 +94,8 @@ class ConfigDialog(QDialog):
                                        )
             return
 
-        decomp_server = AngrDecompilerServer(self._instance, host, int(port, 0))
-        t = threading.Thread(target=decomp_server.start_xmlrpc_server, args=())
+        decomp_server = AngrDecompilerServer(self._instance)
+        t = threading.Thread(target=decomp_server.start_xmlrpc_server, kwargs={"host": host, "port": int(port, 0)})
         t.daemon = True
         try:
             t.start()

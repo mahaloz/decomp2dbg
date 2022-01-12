@@ -21,6 +21,17 @@ class AngrDecompilerServer:
     # Private
     #
 
+    def rebase_addr(self, addr, down=False):
+        rebased = addr
+        base_addr = self._instance.project.loader.min_addr
+
+        if down:
+            rebased -= base_addr
+        elif addr < base_addr:
+            rebased += base_addr
+
+        return rebased
+
     def _decompile_function(self, func):
         """
         Taken directly from BinSync
@@ -62,6 +73,7 @@ class AngrDecompilerServer:
         Always returns a dict with the defined keys below, which may have None as their values.
         """
 
+        addr = self.rebase_addr(addr)
         resp = {
             "decompilation": None
         }
@@ -97,6 +109,7 @@ class AngrDecompilerServer:
             "args": {},
             "stack_vars": {}
         }
+        addr = self.rebase_addr(addr)
         func_addr = self._instance.cfg.get_any_node(addr, anyaddr=True).function_address
         func = self._instance.kb.functions[func_addr]
         decomp = self._decompile_function(func)
@@ -113,7 +126,7 @@ class AngrDecompilerServer:
     def function_headers(self):
         resp = {}
         for addr, func in self._instance.kb.functions.items():
-            resp[str(addr)] = {
+            resp[str(self.rebase_addr(addr, down=True))] = {
                 "name": func.name,
                 "size": func.size
             }
