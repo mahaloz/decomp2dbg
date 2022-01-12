@@ -72,15 +72,11 @@ class AngrDecompilerServer:
 
         Always returns a dict with the defined keys below, which may have None as their values.
         """
-
-        addr = self.rebase_addr(addr)
         resp = {
             "decompilation": None
         }
-        self._workspace.log(f"Attempting decompile for {hex(addr)}")
-        if addr < self._instance.project.loader.min_addr:
-            addr += self._instance.project.loader.min_addr
 
+        addr = self.rebase_addr(addr)
         func_addr = self._instance.cfg.get_any_node(addr, anyaddr=True).function_address
         func = self._instance.kb.functions[func_addr]
         decomp = self._decompile_function(func)
@@ -109,6 +105,7 @@ class AngrDecompilerServer:
             "args": {},
             "stack_vars": {}
         }
+
         addr = self.rebase_addr(addr)
         func_addr = self._instance.cfg.get_any_node(addr, anyaddr=True).function_address
         func = self._instance.kb.functions[func_addr]
