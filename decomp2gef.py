@@ -28,44 +28,56 @@ import sortedcontainers
 
 from decomp2gef import DecompilerClient
 
-
 #
 # Helper Functions
 #
 
-def initialize_vmmap_hashmap():
-    """Only to be ran ONCE on remote connections.
-    Downloads ALL remote files from remote and creates a hashmap
+def initialize_proc_hashmap():
+    """
+    Only to be ran ONCE on remote connections.
+    Downloads ALL remote files from remote and creates a _proc_hash_map_
     to be used for comparing and using the correct binary to get
-    base_address."""
-    global hashmap
+    base_address.
+    """
+    global _proc_hash_map_
 
     vmmap = get_process_maps()
+    bad_sections = ['', '[heap]', '[stack]']
 
-    hashmap = {}
+    _proc_hash_map_ = {}
     for path in set([x.path for x in vmmap]):
-        if path == '' or path == '[heap]' or path == '[stack]':
+        if path in bad_sections:
             continue
-        out = download_file(path)
-        hashmap[path] = hashlib.md5(open(out,'rb').read()).hexdigest()
+
+        file = download_file(path)
+        with open(file, 'rb') as fp:
+            _proc_hash_map_[path] = hashlib.md5(fp.read()).hexdigest()
 
 
-def get_text_base_address(vmmap):
-    """Uses a hashmap to ensure correct text_address is being returned"""
-    global hashmap
+def get_text_base_address():
+    """
+    Uses a _proc_hash_map_ to ensure correct text_address is being returned
+    """
+    global _proc_hash_map_
+    vmmap = get_process_maps()
 
+    # user is using gdbserver
     if is_remote_debug():
-        file_hash = hashlib.md5(open(get_filepath(),'rb').read()).hexdigest()
+        with open(get_filepath(), 'rb') as fp:
+            file_hash = hashlib.md5(fp.read()).hexdigest()
+
+        bad_sections = ['', '[heap]', '[stack]']
         text_base_arr = []
         for x in vmmap:
-            if x.path == '' or x.path == '[heap]' or x.path == '[stack]':
-                pass
-            elif hashmap[x.path] == file_hash:
-                text_base_arr.append(x.page_start)
-                text_base = min(text_base_arr)
-    elif not is_remote_debug():
-        text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
+            if (x.path in bad_sections) or x.path not in _proc_hash_map_:
+                continue
 
+            if _proc_hash_map_[x.path] == file_hash:
+                text_base_arr.append(x.page_start)
+        return min(text_base_arr)
+
+    # user is using a local process
+    text_base = min([x.page_start for x in vmmap if x.path == get_filepath()])
     return text_base
 
 
@@ -77,9 +89,7 @@ def rebase_addr(addr, up=False):
     up -> make an offset to a absolute address
     down -> make an absolute address to an offset
     """
-    vmmap = get_process_maps()
-
-    base_address = get_text_base_address(vmmap)
+    base_address = get_text_base_address()
 
     checksec_status = checksec(get_filepath())
     pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
@@ -246,9 +256,7 @@ class SymbolMapper:
         self._delete_old_sym_files()
 
         # locate the base address of the binary
-        vmmap = get_process_maps()
-
-        text_base = get_text_base_address(vmmap)
+        text_base = get_text_base_address()
 
         # add each symbol into a mass symbol commit
         max_commit_size = 1500
@@ -499,7 +507,6 @@ class GEFDecompilerClient(DecompilerClient):
                 gdb.execute(f"set ${stack_var['name']} = ($fp - {offset})")
 
 
-
 _decompiler_ = GEFDecompilerClient()
 
 
@@ -662,19 +669,7 @@ class DecompilerCommand(GenericCommand):
             return
 
         info("Connected to decompiler!")
-
-        # override x86 function_parameters to cater for more function arguments
-        only_if_decompiler_connected(decomp2gef_overrides())
-
-        # if remote, download remote binaries and initialize hashmap
-        if is_remote_debug():
-            initialize_vmmap_hashmap()
-
-        # do imports on first connect
-        _decompiler_.update_symbols()
-
-        # register the context_pane after connection
-        register_external_context_pane("decompilation", _decompiler_ctx_pane_.display_pane, _decompiler_ctx_pane_.title)
+        self._init_good_connection()
 
     def _handle_disconnect(self, args):
         _decompiler_.disconnect()
@@ -708,6 +703,25 @@ class DecompilerCommand(GenericCommand):
         gef_print("[!] Failed to handle decompiler command: {}.".format(error))
         self._handle_help(None)
 
+    #
+    # Utils
+    #
+
+    def _init_good_connection(self):
+        # override gef functions that must be dealt with
+        init_gef_overrides()
+
+        # if remote, download remote binaries and initialize _proc_hash_map_
+        if is_remote_debug():
+            initialize_proc_hashmap()
+
+        # do imports on first connect
+        _decompiler_.update_symbols()
+
+        # register the context_pane after connection
+        register_external_context_pane("decompilation", _decompiler_ctx_pane_.display_pane, _decompiler_ctx_pane_.title)
+
+
 
 register_external_command(DecompilerCommand())
 
@@ -715,18 +729,13 @@ register_external_command(DecompilerCommand())
 # Dirty overrides
 #
 
-def decomp2gef_overrides():
-    """Currently only overrides function parameters for X86 to cater for handling
-    of more than one function parameter when syncing decompilation to debugger."""
-    if current_arch.arch == 'X86':
-        current_arch.function_parameters = [f'$esp+{x}' for x in range(0, 28, 4)]
-
-
-# XXX: globally overwrites the gef function gdb_get_location_from_symbol
+# overwrites the gef function gdb_get_location_from_symbol
 # this is hacky, but slyly adds an api to gef for adding symbols
 def gdb_get_location_from_symbol_overide(address):
-    """Retrieve the location of the `address` argument from the symbol table.
-    Return a tuple with the name and offset if found, None otherwise."""
+    """
+    Retrieve the location of the `address` argument from the symbol table.
+    Return a tuple with the name and offset if found, None otherwise.
+    """
     # this is horrible, ugly hack and shitty perf...
     # find a *clean* way to get gdb.Location from an address
     name = None
@@ -743,3 +752,15 @@ def gdb_get_location_from_symbol_overide(address):
     if len(sym) == 3 and sym[2].isdigit():
         offset = int(sym[2])
     return name, offset
+
+def init_gef_overrides():
+    """
+    Function for doing dirty overrides or patches to things in GEF that we need fixed but
+    can't for some reason.
+    """
+
+    # A fix to make function parameters work on normal x86, since in GEF the function
+    # parameter is usually just 'esp'. In reality, we need it to be some amount of
+    # offsets from esp.
+    if current_arch.arch == 'X86':
+        current_arch.function_parameters = [f'$esp+{x}' for x in range(0, 28, 4)]
