@@ -400,7 +400,7 @@ class SymbolMapper:
                 continue
 
             # compute offset
-            sym_size_loc = tab_offset + sym_data_size * (i + 5) + sym_size_off
+            sym_size_loc = tab_offset + sym_data_size * (i + 1) + sym_size_off
             pack_str = "<Q" if elf.ELF_64_BITS else "<I"
             # write the new size
             updated_size = struct.pack(pack_str, size)
