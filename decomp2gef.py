@@ -41,7 +41,7 @@ def initialize_proc_hashmap():
     """
     global _proc_hash_map_
 
-    vmmap = get_process_maps()
+    vmmap = gef.memory.maps
     bad_sections = ['', '[heap]', '[stack]']
 
     _proc_hash_map_ = {}
@@ -59,7 +59,7 @@ def get_text_base_address():
     Uses a _proc_hash_map_ to ensure correct text_address is being returned
     """
     global _proc_hash_map_
-    vmmap = get_process_maps()
+    vmmap = gef.memory.maps
 
     # user is using gdbserver
     if is_remote_debug():
@@ -267,7 +267,7 @@ class SymbolMapper:
         fname = self._construct_small_elf()
         for i, (name, addr, typ, size) in enumerate(sym_info_list):
             if typ not in supported_types:
-                warn("Skipping symbol {}, type is not supported: {}".format(name, typ))
+                warn(f"Skipping symbol {name}, type is not supported: {typ}")
                 continue
 
             # queue the sym for later use
@@ -309,7 +309,7 @@ class SymbolMapper:
             self._gcc = which("gcc")
             self._objcopy = which("objcopy")
         except FileNotFoundError as e:
-            err("Binutils binaries not found: {}".format(e))
+            err(f"Binutils binaries not found: {e}")
             return False
 
         return True
@@ -400,7 +400,7 @@ class SymbolMapper:
                 continue
 
             # compute offset
-            sym_size_loc = tab_offset + sym_data_size * (i + 5) + sym_size_off
+            sym_size_loc = tab_offset + sym_data_size * (i + 1) + sym_size_off
             pack_str = "<Q" if elf.ELF_64_BITS else "<I"
             # write the new size
             updated_size = struct.pack(pack_str, size)
@@ -450,7 +450,7 @@ class GEFDecompilerClient(DecompilerClient):
             try:
                 _decomp_sym_tab_.add_native_symbols(syms_to_add)
             except Exception as e:
-                err("Failed to set symbols natively: {}".format(e))
+                err(f"Failed to set symbols natively: {e}")
                 self.native_sym_support = False
                 return False
 
@@ -478,9 +478,9 @@ class GEFDecompilerClient(DecompilerClient):
         args = func_data["args"]
         stack_vars = func_data["stack_vars"]
 
-        for idx, arg in list(args.items())[:len(current_arch.function_parameters)]:
+        for idx, arg in list(args.items())[:len(gef.arch.function_parameters)]:
             idx = int(idx, 0)
-            expr = f"""(({arg['type']}) {current_arch.function_parameters[idx]}"""
+            expr = f"""(({arg['type']}) {gef.arch.function_parameters[idx]}"""
             try:
                 val = gdb.parse_and_eval(expr)
                 gdb.execute(f"set ${arg['name']} {val}")
@@ -564,9 +564,9 @@ class DecompilerCTXPane:
             return
 
         # configure based on source config
-        past_lines_color = get_gef_setting("theme.old_context")
-        nb_lines = get_gef_setting("context.nb_lines_code")
-        cur_line_color = get_gef_setting("theme.source_current_line")
+        past_lines_color = gef.config["theme.old_context"]
+        nb_lines = gef.config["context.nb_lines_code"]
+        cur_line_color = gef.config["theme.source_current_line"]
 
         # use GEF source printing method
         for i in range(self.curr_line - nb_lines + 1, self.curr_line + nb_lines):
@@ -596,7 +596,7 @@ class DecompilerCTXPane:
         if not self.decompiler.connected:
             return None
 
-        self.ready_to_display = self.update_event(current_arch.pc)
+        self.ready_to_display = self.update_event(gef.arch.pc)
 
         if self.ready_to_display:
             title = "decompiler:{:s}:{:s}:{:d}".format(self.decompiler.name, self.curr_func, self.curr_line+1)
@@ -616,7 +616,7 @@ _decompiler_ctx_pane_ = DecompilerCTXPane(_decompiler_)
 class DecompilerCommand(GenericCommand):
     """The command interface for the remote Decompiler"""
     _cmdline_ = "decompiler"
-    _syntax_ = "{:s} [connect | disconnect]".format(_cmdline_)
+    _syntax_ = f"{_cmdline_} [connect | disconnect]"
 
     @only_if_gdb_running
     def do_invoke(self, argv):
@@ -633,7 +633,7 @@ class DecompilerCommand(GenericCommand):
     #
 
     def _handle_cmd(self, cmd, args):
-        handler_str = "_handle_{}".format(cmd)
+        handler_str = f"_handle_{cmd}"
         if hasattr(self, handler_str):
             handler = getattr(self, handler_str)
             handler(args)
@@ -700,7 +700,7 @@ class DecompilerCommand(GenericCommand):
         gef_print(textwrap.dedent(usage_str))
 
     def _handler_failed(self, error):
-        gef_print("[!] Failed to handle decompiler command: {}.".format(error))
+        gef_print(f"[!] Failed to handle decompiler command: {error}.")
         self._handle_help(None)
 
     #
@@ -762,5 +762,5 @@ def init_gef_overrides():
     # A fix to make function parameters work on normal x86, since in GEF the function
     # parameter is usually just 'esp'. In reality, we need it to be some amount of
     # offsets from esp.
-    if current_arch.arch == 'X86':
-        current_arch.function_parameters = [f'$esp+{x}' for x in range(0, 28, 4)]
+    if is_x86_32():
+        gef.arch.function_parameters = [f'$esp+{x}' for x in range(0, 28, 4)]
