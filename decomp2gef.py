@@ -267,7 +267,7 @@ class SymbolMapper:
         fname = self._construct_small_elf()
         for i, (name, addr, typ, size) in enumerate(sym_info_list):
             if typ not in supported_types:
-                warn("Skipping symbol {}, type is not supported: {}".format(name, typ))
+                warn(f"Skipping symbol {name}, type is not supported: {typ}")
                 continue
 
             # queue the sym for later use
@@ -309,7 +309,7 @@ class SymbolMapper:
             self._gcc = which("gcc")
             self._objcopy = which("objcopy")
         except FileNotFoundError as e:
-            err("Binutils binaries not found: {}".format(e))
+            err(f"Binutils binaries not found: {e}")
             return False
 
         return True
@@ -450,7 +450,7 @@ class GEFDecompilerClient(DecompilerClient):
             try:
                 _decomp_sym_tab_.add_native_symbols(syms_to_add)
             except Exception as e:
-                err("Failed to set symbols natively: {}".format(e))
+                err(f"Failed to set symbols natively: {e}")
                 self.native_sym_support = False
                 return False
 
@@ -616,7 +616,7 @@ _decompiler_ctx_pane_ = DecompilerCTXPane(_decompiler_)
 class DecompilerCommand(GenericCommand):
     """The command interface for the remote Decompiler"""
     _cmdline_ = "decompiler"
-    _syntax_ = "{:s} [connect | disconnect]".format(_cmdline_)
+    _syntax_ = f"{_cmdline_} [connect | disconnect]"
 
     @only_if_gdb_running
     def do_invoke(self, argv):
@@ -633,7 +633,7 @@ class DecompilerCommand(GenericCommand):
     #
 
     def _handle_cmd(self, cmd, args):
-        handler_str = "_handle_{}".format(cmd)
+        handler_str = f"_handle_{cmd}"
         if hasattr(self, handler_str):
             handler = getattr(self, handler_str)
             handler(args)
@@ -700,7 +700,7 @@ class DecompilerCommand(GenericCommand):
         gef_print(textwrap.dedent(usage_str))
 
     def _handler_failed(self, error):
-        gef_print("[!] Failed to handle decompiler command: {}.".format(error))
+        gef_print(f"[!] Failed to handle decompiler command: {error}.")
         self._handle_help(None)
 
     #
