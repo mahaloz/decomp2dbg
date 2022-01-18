@@ -1,8 +1,13 @@
 import threading
 import traceback
 
-from PySide2.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, \
-    QGridLayout
+try:
+    from PySide2.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, \
+        QGridLayout
+except ImportError:
+    from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, \
+        QGridLayout
+
 
 from binaryninjaui import (
     UIContext,

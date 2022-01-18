@@ -1,5 +1,6 @@
 from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 
+from binaryninja import SymbolType
 
 class RequestHandler(SimpleXMLRPCRequestHandler):
     rpc_paths = ("/RPC2",)
@@ -107,24 +108,17 @@ class BinjaDecompilerServer:
 
         return resp
 
-
     def global_vars(self):
         resp = {}
-        known_segs = [".data", ".bss"]
-        for seg_name in known_segs:
-            seg = self.bv.get_section_by_name(seg_name)
-            for seg_ea in range(seg.start, seg.end):
-                if len(list(self.bv.get_code_refs(seg_ea))) < 1:
-                    # no refs
-                    continue
+        for addr, var in self.bv.data_vars.items():
+            sym = self.bv.get_symbol_at(addr)
+            name = sym.name if sym else "data_{:x}".format(addr)
 
-                var = self.bv.get_data_var_at(seg_ea)
-                resp[str(seg_ea)] = {
-                    "name": var.name
-                }
+            resp[str(addr)] = {
+                "name": name
+            }
 
         return resp
-
 
     def structs(self):
         resp = {}
