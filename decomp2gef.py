@@ -382,7 +382,6 @@ class SymbolMapper:
         # patch .text to seem large enough for any function
         if elf.e_class == Elf.ELF_64_BITS:
             elf_data = self._force_update_text_size(elf_data, 0xFFFFFF)
-        else:
             pass
 
         # find the symbol table
