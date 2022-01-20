@@ -75,6 +75,11 @@ def get_text_base_address():
 
             if _proc_hash_map_[x.path] == file_hash:
                 text_base_arr.append(x.page_start)
+
+            # if no remote binary match binary being debugged
+            if len(text_base_arr) == 0:
+                err("Binary being debugged does not match any remote binary.")
+
         return min(text_base_arr)
 
     # user is using a local process
@@ -344,15 +349,15 @@ class SymbolMapper:
         # delete unneeded sections from object file
         os.system(f"{self._objcopy} --only-keep-debug {fname}.debug")
         os.system(f"{self._objcopy} --strip-all {fname}.debug")
-        elf = get_elf_headers(f"{fname}.debug")
+
+        elf = ELFFile(open(f'{fname}.debug', 'rb'))
 
         required_sections = [".text", ".interp", ".rela.dyn", ".dynamic", ".bss"]
-        for s in elf.shdrs:
+        for s in elf.iter_sections():
             # keep some required sections
-            if s.sh_name in required_sections:
+            if s.name in required_sections:
                 continue
-
-            os.system(f"{self._objcopy} --remove-section={s.sh_name} {fname}.debug 2>/dev/null")
+            os.system(f"{self._objcopy} --remove-section={s.name} {fname}.debug 2>/dev/null")
 
         # cache the small object file for use
         self._elf_cache["fname"] = fname + ".debug"
@@ -418,7 +423,6 @@ class SymbolMapper:
             elf_data[sym_size_loc:sym_size_loc + len(updated_size)] = updated_size
 
         # write data back to elf
-        breakpoint()
         open(fname, "wb").write(elf_data)
 
     def _add_symbol_file(self, fname, cmd_string_arr, text_base, queued_sym_sizes):
@@ -613,7 +617,7 @@ class DecompilerCTXPane:
         if self.ready_to_display:
             title = "decompiler:{:s}:{:s}:{:d}".format(self.decompiler.name, self.curr_func, self.curr_line+1)
         else:
-            title = "decomipler:{:s}:error".format(self.decompiler.name)
+            title = "decompuiler:{:s}:error".format(self.decompiler.name)
 
         return title
 
