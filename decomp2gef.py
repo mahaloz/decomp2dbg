@@ -23,8 +23,8 @@ import functools
 import struct
 import os
 import hashlib
-from elftools.elf.elffile import ELFFile
 
+from elftools.elf.elffile import ELFFile
 import sortedcontainers
 
 from decomp2gef import DecompilerClient
