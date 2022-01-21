@@ -398,15 +398,16 @@ class SymbolMapper:
 
         # find the symbol table
         section = elf.get_section_by_name('.symtab')
-        if not section: return 
+        if not section:
+            return 
 
         # locate the location of the symbols size in the symtab
         tab_offset = section['sh_offset']
-        """
-        NOTE: 64-bit elf checks are redundant as of now because all debug files
-        generated are 64-bit regardless of the original binary. Does not seem to
-        have any big problems as of now. May consider removing it or generating 32-bit
-        debug binaries if necessary for this code to remain relevant."""
+
+        # NOTE: 64-bit elf checks are redundant as of now because all debug files
+        # generated are 64-bit regardless of the original binary. Does not seem to
+        # have any big problems as of now. May consider removing it or generating 32-bit
+        # debug binaries if necessary for this code to remain relevant.
         sym_data_size = 24 if elf.elfclass == 64 else 16
         sym_size_off = sym_data_size - 8
 
@@ -617,7 +618,7 @@ class DecompilerCTXPane:
         if self.ready_to_display:
             title = "decompiler:{:s}:{:s}:{:d}".format(self.decompiler.name, self.curr_func, self.curr_line+1)
         else:
-            title = "decompuiler:{:s}:error".format(self.decompiler.name)
+            title = "decompiler:{:s}:error".format(self.decompiler.name)
 
         return title
 
