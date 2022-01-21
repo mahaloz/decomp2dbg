@@ -13,7 +13,8 @@ setup(
     packages=packages,
     install_requires=[
         "sortedcontainers",
-        "PyQT5"
+        "PyQT5",
+        "pyelftools"
     ],
     description='Syncing framework for decompilers and debuggers',
     url='https://github.com/mahaloz/decomp2gef',
