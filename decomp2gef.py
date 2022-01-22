@@ -380,7 +380,8 @@ class SymbolMapper:
         elf_data = bytearray(open(fname, "rb").read())
 
         # patch .text to seem large enough for any function
-        elf_data = self._force_update_text_size(elf_data, 0xFFFFFF)
+        if elf.e_class == Elf.ELF_64_BITS:
+            elf_data = self._force_update_text_size(elf_data, 0xFFFFFF)
 
         # find the symbol table
         for section in elf.shdrs:
