@@ -24,6 +24,7 @@ import struct
 import os
 import hashlib
 
+from elftools.elf.elffile import ELFFile
 import sortedcontainers
 
 from decomp2gef import DecompilerClient
@@ -74,6 +75,11 @@ def get_text_base_address():
 
             if _proc_hash_map_[x.path] == file_hash:
                 text_base_arr.append(x.page_start)
+
+            # if no remote binary match binary being debugged
+            if len(text_base_arr) == 0:
+                err("Binary being debugged does not match any remote binary.")
+
         return min(text_base_arr)
 
     # user is using a local process
@@ -343,15 +349,15 @@ class SymbolMapper:
         # delete unneeded sections from object file
         os.system(f"{self._objcopy} --only-keep-debug {fname}.debug")
         os.system(f"{self._objcopy} --strip-all {fname}.debug")
-        elf = get_elf_headers(f"{fname}.debug")
+
+        elf = ELFFile(open(f'{fname}.debug', 'rb'))
 
         required_sections = [".text", ".interp", ".rela.dyn", ".dynamic", ".bss"]
-        for s in elf.shdrs:
+        for s in elf.iter_sections():
             # keep some required sections
-            if s.sh_name in required_sections:
+            if s.name in required_sections:
                 continue
-
-            os.system(f"{self._objcopy} --remove-section={s.sh_name} {fname}.debug 2>/dev/null")
+            os.system(f"{self._objcopy} --remove-section={s.name} {fname}.debug 2>/dev/null")
 
         # cache the small object file for use
         self._elf_cache["fname"] = fname + ".debug"
@@ -362,37 +368,47 @@ class SymbolMapper:
         self._elf_cache["data"] = open(self._elf_cache["fname"], "rb").read()
         return self._elf_cache["fname"]
 
-    def _force_update_text_size(self, elf_data, new_size):
-        # XXX: this is bad and only works on 64bit elf
-        default_text_size = 0x92
-        elf_rev = elf_data[::-1]
-        size_off = elf_rev.find(default_text_size)
-        patch = struct.pack("<Q", new_size)
-        size_off = len(elf_rev) - size_off - 1
+    def _force_update_text_size(self, stream, elf, elf_data, new_size):
+        text_sect = elf.get_section_by_name('.text')
 
-        elf_data[size_off:size_off + len(patch)] = patch
+        for count in range(elf['e_shnum']):
+            sect_off = elf['e_shoff'] + count * elf['e_shentsize']
+            stream.seek(sect_off)
+            section_header = elf.structs.Elf_Shdr.parse_stream(stream)
+            if section_header['sh_name'] == text_sect['sh_name']:
+                break
+
+        patch = struct.pack("<Q", new_size)
+        elf_data[sect_off+32: sect_off + 32 + len(patch)] = patch
         return elf_data
 
+
     def _force_update_sym_sizes(self, fname, queued_sym_sizes):
-        # parsing based on: https://github.com/torvalds/linux/blob/master/include/uapi/linux/elf.h
-        get_elf_headers.cache_clear()
-        elf: Elf = get_elf_headers(fname)
-        elf_data = bytearray(open(fname, "rb").read())
+        # use pyelftools to obtain accurate offsets and assign symbol sizes
+
+        stream = open(fname, 'rb')
+        elf_data = bytearray(stream.read())
+        stream.close()
+
+        stream = open(fname, 'rb')
+        elf = ELFFile(stream)
 
         # patch .text to seem large enough for any function
-        if elf.e_class == Elf.ELF_64_BITS:
-            elf_data = self._force_update_text_size(elf_data, 0xFFFFFF)
+        elf_data = self._force_update_text_size(stream, elf, elf_data, 0xFFFFFF)
 
         # find the symbol table
-        for section in elf.shdrs:
-            if section.sh_name == ".symtab":
-                break
-        else:
-            return
+        section = elf.get_section_by_name('.symtab')
+        if not section:
+            return 
 
         # locate the location of the symbols size in the symtab
-        tab_offset = section.sh_offset
-        sym_data_size = 24 if elf.ELF_64_BITS else 16
+        tab_offset = section['sh_offset']
+
+        # NOTE: 64-bit elf checks are redundant as of now because all debug files
+        # generated are 64-bit regardless of the original binary. Does not seem to
+        # have any big problems as of now. May consider removing it or generating 32-bit
+        # debug binaries if necessary for this code to remain relevant.
+        sym_data_size = 24 if elf.elfclass == 64 else 16
         sym_size_off = sym_data_size - 8
 
         for i, size in queued_sym_sizes.items():
@@ -402,7 +418,7 @@ class SymbolMapper:
 
             # compute offset
             sym_size_loc = tab_offset + sym_data_size * (i + 1) + sym_size_off
-            pack_str = "<Q" if elf.ELF_64_BITS else "<I"
+            pack_str = "<Q" if elf.elfclass == 64 else "<I"
             # write the new size
             updated_size = struct.pack(pack_str, size)
             elf_data[sym_size_loc:sym_size_loc + len(updated_size)] = updated_size
@@ -602,7 +618,7 @@ class DecompilerCTXPane:
         if self.ready_to_display:
             title = "decompiler:{:s}:{:s}:{:d}".format(self.decompiler.name, self.curr_func, self.curr_line+1)
         else:
-            title = "decomipler:{:s}:error".format(self.decompiler.name)
+            title = "decompiler:{:s}:error".format(self.decompiler.name)
 
         return title
 
