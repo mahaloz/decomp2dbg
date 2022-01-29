@@ -11,6 +11,8 @@ class BinjaDecompilerServer:
         self.bv = bv
         self.host = host
         self.port = port
+        
+        self._last_line = 0
 
     #
     # Public API
@@ -37,20 +39,13 @@ class BinjaDecompilerServer:
         # find the decompiled line closest to the current addr
         decomp_lines = func.get_low_level_il_at(addr).hlils
         if not decomp_lines:
-            resp["curr_line"] = 0
+            resp["curr_line"] = self._last_line
             return resp
 
         best_line = min(decomp_lines, key=lambda l: abs(l.address - addr))
 
-        # find the lines location on the decompilation
-        for curr_line, il in enumerate(func.hlil.instructions):
-            if il == best_line:
-                break
-        else:
-            # if unable to find, put them at start of fun
-            curr_line = 0
-
-        resp["curr_line"] = curr_line
+        resp["curr_line"] = best_line.instr_index
+        self._last_line = resp["curr_line"] if resp["curr_line"] != 0 else self._last_line
         return resp
 
     def function_data(self, addr: int):
