@@ -404,6 +404,15 @@ class SymbolMapper:
         # locate the location of the symbols size in the symtab
         tab_offset = section['sh_offset']
 
+        # see if symbols already exist to skip
+        for skip_off, sym in enumerate(section.iter_symbols()):
+            if sym.name:
+                break
+        else:
+            # this should never happen
+            skip_off = 1
+        skip_off -= 1
+
         # NOTE: 64-bit elf checks are redundant as of now because all debug files
         # generated are 64-bit regardless of the original binary. Does not seem to
         # have any big problems as of now. May consider removing it or generating 32-bit
@@ -417,7 +426,7 @@ class SymbolMapper:
                 continue
 
             # compute offset
-            sym_size_loc = tab_offset + sym_data_size * (i + 1) + sym_size_off
+            sym_size_loc = tab_offset + sym_data_size * (i + 1 + skip_off) + sym_size_off
             pack_str = "<Q" if elf.elfclass == 64 else "<I"
             # write the new size
             updated_size = struct.pack(pack_str, size)
