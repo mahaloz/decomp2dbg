@@ -32,16 +32,10 @@ pip3 install . && \
 cp decomp2gef.py ~/.decomp2gef.py && echo "source ~/.decomp2gef.py" >> ~/.gdbinit
 ```
 
-## Simpler Install
-
-If you are looking for a no-dependencies plugin, you can use the old
-[simple_install](https://github.com/mahaloz/decomp2gef/tree/simple_install) branch which is
-simpler to install, but has fewer features. 
-
 ## Usage 
 First, start the decompilation server on your decompiler. This can be done by using the hotkey `Ctrl-Shift-D`,
-or selecting the `decomp2GEF: configure` tab in your associated plugins tab. After starting the server, you should
-see message in your decompiler
+or selecting the `decomp2GEF: configure` tab in your associated plugins tab (under `Tools` in Binja). After starting the server, you should
+see a message in your decompiler
 ```
 [+] Starting XMLRPC server: localhost:3662
 [+] Registered decompilation server!
