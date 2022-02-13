@@ -445,8 +445,7 @@ class SymbolMapper:
 
         gdb.execute(f"add-symbol-file {fname} {text_base:#x}", to_string=True)
 
-        print(f"===== should unlink {fname}")
-        #os.unlink(fname)
+        os.unlink(fname)
         return
 
 
