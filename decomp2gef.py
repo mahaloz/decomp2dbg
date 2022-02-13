@@ -445,7 +445,8 @@ class SymbolMapper:
 
         gdb.execute(f"add-symbol-file {fname} {text_base:#x}", to_string=True)
 
-        os.unlink(fname)
+        print(f"===== should unlink {fname}")
+        #os.unlink(fname)
         return
 
 
@@ -467,11 +468,11 @@ class GEFDecompilerClient(DecompilerClient):
 
         # add symbols with native support if possible
         if self.native_sym_support:
-            for addr, func in func_headers.items():
-                syms_to_add.append((func["name"], int(addr, 0), "function", func["size"]))
-
             for addr, global_var in global_vars.items():
                 syms_to_add.append((global_var["name"], int(addr, 0), "object", global_var_size))
+
+            for addr, func in func_headers.items():
+                syms_to_add.append((func["name"], int(addr, 0), "function", func["size"]))
 
             try:
                 _decomp_sym_tab_.add_native_symbols(syms_to_add)
