@@ -463,15 +463,21 @@ class GEFDecompilerClient(DecompilerClient):
     def update_symbols(self):
         global_vars, func_headers = self.update_global_vars(), self.update_function_headers()
         syms_to_add = []
+        sym_name_set = set()
         global_var_size = 8
 
         # add symbols with native support if possible
         if self.native_sym_support:
-            for addr, global_var in global_vars.items():
-                syms_to_add.append((global_var["name"], int(addr, 0), "object", global_var_size))
-
             for addr, func in func_headers.items():
                 syms_to_add.append((func["name"], int(addr, 0), "function", func["size"]))
+                sym_name_set.add(func["name"])
+
+            for addr, global_var in global_vars.items():
+                # never re-add globals with the same name as a func
+                if global_var["name"] in sym_name_set:
+                    continue
+
+                syms_to_add.append((global_var["name"], int(addr, 0), "object", global_var_size))
 
             try:
                 _decomp_sym_tab_.add_native_symbols(syms_to_add)
@@ -593,6 +599,9 @@ class DecompilerCTXPane:
         past_lines_color = gef.config["theme.old_context"]
         nb_lines = gef.config["context.nb_lines_code"]
         cur_line_color = gef.config["theme.source_current_line"]
+
+        if len(self.decomp_lines) < nb_lines:
+            nb_lines = len(self.decomp_lines)
 
         # use GEF source printing method
         for i in range(self.curr_line - nb_lines + 1, self.curr_line + nb_lines):
