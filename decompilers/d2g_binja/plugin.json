@@ -1,0 +1,27 @@
+{
+	"pluginmetadataversion" : 2,
+	"name": "Decomp2GEF",
+	"type": ["core"],
+	"api": ["python3"],
+	"description": "Decomp2GEF support.",
+	"longdescription": "Decomp2GEF support.",
+	"license": {
+		"name": "BSD 2-clause",
+		"text": ""
+	},
+	"platforms" : ["Darwin", "Linux", "Windows"],
+	"installinstructions" : {
+		"Darwin" : "Follow the README",
+		"Linux" : "Follow the README",
+		"Windows" : "Follow the README"
+	},
+	"dependencies": {
+		"pip": [],
+		"apt": [],
+		"installers": [],
+		"other": []
+	},
+	"version": "0.0.0",
+	"author": "mahaloz",
+	"minimumbinaryninjaversion": 1200
+}

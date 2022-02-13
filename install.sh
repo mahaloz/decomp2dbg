@@ -64,11 +64,22 @@ install_ida() {
         echo "IDA install was successful!" && \
         return
     fi
-    echo "ERROR: IDA install failed!\n"
+    echo -e "ERROR: IDA install failed!\n"
 }
 
 install_binja() {
-    echo "SORRY: binary ninja is not currently supported for install yet."
+    if [ -z "${LINK}" ]; then
+        echo "INSTALLING: Binja plugin without linking to ${BINJA_PATH}"
+        cp -r "${LOC}/decompilers/d2g_binja/" "$BINJA_PATH" && \
+        echo "Binja install was successful!" && \
+        return
+    else
+        echo "INSTALLING: Binja plugin WITH linking to ${BINJA_PATH}"
+        ln -s "${LOC}/decompilers/d2g_binja/" "$BINJA_PATH" && \
+        echo "Binja install was successful!" && \
+        return
+    fi
+    echo -e "ERROR: Binja install failed!\n"
 }
 
 install_angr() {
@@ -83,7 +94,7 @@ install_angr() {
         echo "angr install was successful!" && \
         return
     fi
-    echo "ERROR: angr install failed!\n"
+    echo -e "ERROR: angr install failed!\n"
 }
 
 install_client() {
@@ -101,7 +112,7 @@ install_client() {
         echo "gdb client install was successful!"
         return
     fi
-    echo "ERROR: gdb client install failed!\n"
+    echo -e "ERROR: gdb client install failed!\n"
 }
 
 POSITIONAL_ARGS=()
