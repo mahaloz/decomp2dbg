@@ -1,6 +1,29 @@
 from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 
 from binaryninja import SymbolType
+from binaryninja.binaryview import BinaryDataNotification
+
+#
+# Binja Hooks
+#
+
+
+class DataNotification(BinaryDataNotification):
+    def __init__(self, bv, server):
+        super().__init__()
+        self.bv = bv
+        self.server = server  # type: BinjaDecompilerServer
+
+    def symbol_updated(self, view, sym):
+        if sym.type == SymbolType.FunctionSymbol:
+            self.server.cache["function_headers"][str(sym.address)]["name"] = sym.name
+        elif sym.type == SymbolType.DataSymbol:
+            self.server.cache["global_vars"][str(sym.address)]["name"] = sym.name
+
+#
+# Server Code
+#
+
 
 class RequestHandler(SimpleXMLRPCRequestHandler):
     rpc_paths = ("/RPC2",)
@@ -11,8 +34,23 @@ class BinjaDecompilerServer:
         self.bv = bv
         self.host = host
         self.port = port
-        
+
+        # save the last line for bugging decomp mapping
         self._last_line = 0
+
+        # cache changes so we don't need to regen content
+        self.cache = {
+            "global_vars": None,
+            "function_headers": None
+        }
+
+        # make the server init cache data once
+        self.function_headers()
+        self.global_vars()
+
+        # init hooks for cache
+        notification = DataNotification(self.bv, self)
+        self.bv.register_notification(notification)
 
     #
     # Public API
@@ -86,10 +124,13 @@ class BinjaDecompilerServer:
 
         return resp
 
-
     def function_headers(self):
-        resp = {}
+        # check if a cache is available
+        cache_headers = self.cache["function_headers"]
+        if cache_headers:
+            return cache_headers
 
+        resp = {}
         for func in self.bv.functions:
 
             # Skip everything besides FunctionSymbol
@@ -101,9 +142,15 @@ class BinjaDecompilerServer:
                 "size": func.total_bytes
             }
 
+        self.cache["function_headers"] = resp
         return resp
 
     def global_vars(self):
+        # check if a cache is available
+        cache_globals = self.cache["global_vars"]
+        if cache_globals:
+            return cache_globals
+
         resp = {}
         for addr, var in self.bv.data_vars.items():
             sym = self.bv.get_symbol_at(addr)
@@ -113,11 +160,12 @@ class BinjaDecompilerServer:
                 "name": name
             }
 
+        self.cache["global_vars"] = resp
         return resp
 
     def structs(self):
         resp = {}
-
+        """
         # tuple of structure name and StructureType
         for t in self.bv.types.items():
             struct_name = t[0]
@@ -130,6 +178,7 @@ class BinjaDecompilerServer:
                     "offset": member.offset,
                     "size": len(member)
                 }
+        """
 
         return resp
 
