@@ -3,7 +3,9 @@ A plugin to introduce a generic API for decompiler usage and syncing in GDB with
 help of the [GEF](https://github.com/hugsy/gef) plugin.
 
 ![decomp2gef](./assets/decomp2gef.png)
+
 [IDA Demo](https://asciinema.org/a/442740)
+
 [Binja Demo](https://t.co/M2IZd0fmi3)
 
 [![Discord](https://img.shields.io/discord/900841083532087347?label=Discord&style=plastic)](https://discord.gg/wZSCeXnEvR)
