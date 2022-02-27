@@ -17,6 +17,8 @@ The easiest and fastest way to install is using the `install.sh` script!
 ```
 
 Make sure to define the correct option for your decompiler of choice. Use `--help` for more info!
+Note: You may need to allow inbound connections on port 3662, or the port you use, for decomp2gef to connect
+to the decompiler. 
 
 ## Install (manual)
 If you can't use the script (non-WSL Windows install for the decompiler), follow the steps below: 
