@@ -1,1 +1,1 @@
-from .client import DecompilerClient
+from decomp2gef.clients.d2d_client import DecompilerClient
