@@ -1,10 +1,10 @@
 {
 	"pluginmetadataversion" : 2,
-	"name": "Decomp2GEF",
+	"name": "Decomp2DBG",
 	"type": ["core"],
 	"api": ["python3"],
-	"description": "Decomp2GEF support.",
-	"longdescription": "Decomp2GEF support.",
+	"description": "Decomp2DBG support.",
+	"longdescription": "Decomp2DBG support.",
 	"license": {
 		"name": "BSD 2-clause",
 		"text": ""

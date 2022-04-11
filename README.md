@@ -28,7 +28,7 @@ decompiler's plugin folder. Here is how you do it in IDA:
 
 Copy all the files in `./decompilers/d2g_ida/` into your ida `plugins` folder:
 ```bash
-cp -r ./decompilers/d2g_ida/* /path/to/ida/plugins/
+cp -r ./decompilers/d2d_ida/* /path/to/ida/plugins/
 ```
 
 If you also need to install the gdb side of things, use the line below: 

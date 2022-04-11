@@ -54,13 +54,13 @@ version() {
 install_ida() {
     if [ -z "${LINK}" ]; then
         echo "INSTALLING: IDA plugin without linking to ${IDA_PATH}"
-        cp -r "${LOC}/decompilers/d2g_ida/*" "$IDA_PATH" && \
+        cp -r "${LOC}/decompilers/d2d_ida/*" "$IDA_PATH" && \
         echo "IDA install was successful!" && \
         return
     else
         echo "INSTALLING: IDA plugin WITH linking to ${IDA_PATH}"
-        ln -s "${LOC}/decompilers/d2g_ida/decomp2gef_ida.py" "$IDA_PATH" && \
-        ln -s "${LOC}/decompilers/d2g_ida/d2g_ida/" "$IDA_PATH" && \
+        ln -s "${LOC}/decompilers/d2d_ida/decomp2gef_ida.py" "$IDA_PATH" && \
+        ln -s "${LOC}/decompilers/d2d_ida/d2d_ida/" "$IDA_PATH" && \
         echo "IDA install was successful!" && \
         return
     fi
@@ -70,12 +70,12 @@ install_ida() {
 install_binja() {
     if [ -z "${LINK}" ]; then
         echo "INSTALLING: Binja plugin without linking to ${BINJA_PATH}"
-        cp -r "${LOC}/decompilers/d2g_binja/" "$BINJA_PATH" && \
+        cp -r "${LOC}/decompilers/d2d_binja/" "$BINJA_PATH" && \
         echo "Binja install was successful!" && \
         return
     else
         echo "INSTALLING: Binja plugin WITH linking to ${BINJA_PATH}"
-        ln -s "${LOC}/decompilers/d2g_binja/" "$BINJA_PATH" && \
+        ln -s "${LOC}/decompilers/d2d_binja/" "$BINJA_PATH" && \
         echo "Binja install was successful!" && \
         return
     fi
@@ -85,12 +85,12 @@ install_binja() {
 install_angr() {
     if [ -z "${LINK}" ]; then
         echo "INSTALLING: angr plugin without linking to ${ANGR_PATH}"
-        cp -r "${LOC}/decompilers/d2g_angr/" "$ANGR_PATH" && \
+        cp -r "${LOC}/decompilers/d2d_angr/" "$ANGR_PATH" && \
         echo "angr install was successful!" && \
         return
     else
         echo "INSTALLING: angr plugin WITH linking to ${ANGR_PATH}"
-        ln -s "${LOC}/decompilers/d2g_angr/" "$ANGR_PATH" && \
+        ln -s "${LOC}/decompilers/d2d_angr/" "$ANGR_PATH" && \
         echo "angr install was successful!" && \
         return
     fi
