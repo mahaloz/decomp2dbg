@@ -3,7 +3,7 @@ from ..client import DecompilerClient
 from ...utils import *
 from .utils import *
 from .symbol_mapper import SymbolMapper
-from .decompiler_pane import DecompilerCTXPane
+from .decompiler_pane import DecompilerPane
 
 import gdb
 
@@ -88,7 +88,6 @@ class GDBDecompilerClient(DecompilerClient):
 
     def update_function_data(self, addr):
         func_data = self.function_data(addr)
-        print("now looking at args")
         args = func_data["args"]
         stack_vars = func_data["stack_vars"]
 
@@ -223,7 +222,7 @@ class GDBClient:
     def __init__(self):
         self.dec_client = GDBDecompilerClient(self)
         self.cmd_interface = DecompilerCommand(self.dec_client)
-        self.dec_pane = DecompilerCTXPane(self.dec_client)
+        self.dec_pane = DecompilerPane(self.dec_client)
 
         self.text_segment_base_addr = None
 

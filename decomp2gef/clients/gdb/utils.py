@@ -13,7 +13,7 @@ from ...utils import gef_pystring, warn, err
 
 import gdb
 
-GLOBAL_TMP_DIR = os.path.join(tempfile.gettempdir(), "gef")
+GLOBAL_TMP_DIR = os.path.join(tempfile.gettempdir(), "d2d")
 
 
 def vmmap_base_addrs():
@@ -76,27 +76,6 @@ def pc():
 
     return pc_
 
-
-def rebase_addr(addr, up=False):
-    """
-    Rebases an address to be either in the domain of the base of the binary in GDB VMMAP or
-    to be just an offset.
-
-    up -> make an offset to a absolute address
-    down -> make an absolute address to an offset
-    """
-    base_address = get_text_base_address()
-
-    checksec_status = checksec(get_filepath())
-    pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
-    corrected_addr = addr
-    if pie:
-        if up:
-            corrected_addr += base_address
-        else:
-            corrected_addr -= base_address
-
-    return corrected_addr
 
 #
 # GEF Clone

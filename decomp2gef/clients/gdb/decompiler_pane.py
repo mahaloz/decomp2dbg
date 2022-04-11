@@ -1,16 +1,16 @@
-#from .gdb_client import GDBDecompilerClient
 from ...utils import *
-from .utils import rebase_addr, pc
+from .utils import pc
 
 
-class DecompilerCTXPane:
-    def __init__(self, decompiler):
+class DecompilerPane:
+    def __init__(self, decompiler, printer=pprint):
         self.decompiler: "GDBDecompilerClient" = decompiler
 
         self.ready_to_display = False
         self.decomp_lines = []
         self.curr_line = -1
         self.curr_func = ""
+        self.print = printer
 
         # XXX: this needs to be removed in the future
         self.stop_global_import = False
@@ -38,9 +38,7 @@ class DecompilerCTXPane:
         self.curr_func = resp["func_name"]
 
         # update the data known in the function (stack variables)
-        print("updating function data")
         self.decompiler.update_function_data(rebased_pc)
-        print("finished updating function data")
         return True
 
     def display_pane(self):
@@ -68,17 +66,17 @@ class DecompilerCTXPane:
                 continue
 
             if i < self.curr_line:
-                pprint(
+                self.print(
                     "{}".format(Color.colorify("  {:4d}\t {:s}".format(i + 1, self.decomp_lines[i], ), past_lines_color))
                 )
 
             if i == self.curr_line:
                 prefix = "{}{:4d}\t ".format(RIGHT_ARROW[1:], i + 1)
-                pprint(Color.colorify("{}{:s}".format(prefix, self.decomp_lines[i]), cur_line_color))
+                self.print(Color.colorify("{}{:s}".format(prefix, self.decomp_lines[i]), cur_line_color))
 
             if i > self.curr_line:
                 try:
-                    pprint("  {:4d}\t {:s}".format(i + 1, self.decomp_lines[i], ))
+                    self.print("  {:4d}\t {:s}".format(i + 1, self.decomp_lines[i], ))
                 except IndexError:
                     break
         return
@@ -100,7 +98,6 @@ class DecompilerCTXPane:
         return title
 
     def display_pane_and_title(self, *args, **kwargs):
-        print("IN PANE AND TITLE")
 
         #
         # title
@@ -113,7 +110,7 @@ class DecompilerCTXPane:
         tty_rows, tty_columns = get_terminal_size()
 
         if title_ is None:
-            pprint(Color.colorify(HORIZONTAL_LINE * tty_columns, line_color))
+            self.print(Color.colorify(HORIZONTAL_LINE * tty_columns, line_color))
         else:
             trail_len = len(title_) + 6
             title = ""
@@ -124,11 +121,11 @@ class DecompilerCTXPane:
             title += Color.colorify(title_, msg_color)
             title += Color.colorify(" {:{padd}<4}".format("", padd=HORIZONTAL_LINE),
                                     line_color)
-            pprint(title)
+            self.print(title)
 
         #
         # decompilation
         #
-        print("ABOUT TO DISPLAY PANE")
 
         self.display_pane()
+        self.print(Color.colorify(HORIZONTAL_LINE * tty_columns, line_color))
