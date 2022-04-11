@@ -43,7 +43,11 @@ class DecompilerClient:
             self.server = None
             return False
 
+        self.decompiler_connected()
         return True
+
+    def decompiler_connected(self):
+        pass
 
     #
     # Decompiler Interface

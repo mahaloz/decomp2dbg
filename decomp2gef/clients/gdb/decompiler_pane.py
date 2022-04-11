@@ -1,0 +1,134 @@
+#from .gdb_client import GDBDecompilerClient
+from ...utils import *
+from .utils import rebase_addr, pc
+
+
+class DecompilerCTXPane:
+    def __init__(self, decompiler):
+        self.decompiler: "GDBDecompilerClient" = decompiler
+
+        self.ready_to_display = False
+        self.decomp_lines = []
+        self.curr_line = -1
+        self.curr_func = ""
+
+        # XXX: this needs to be removed in the future
+        self.stop_global_import = False
+
+    def update_event(self, pc_):
+        rebased_pc = self.decompiler.rebase_addr(pc_)
+
+        # update all known function names
+        self.decompiler.update_symbols()
+
+        # decompile the current pc location
+        try:
+            resp = self.decompiler.decompile(rebased_pc)
+        except Exception as e:
+            warn(f"FAILED on {e}")
+            return False
+
+        # set the decompilation for next use in display_pane
+        decompilation = resp['decompilation']
+        if not decompilation:
+            warn("NO DECOMP PRESENT")
+            return False
+        self.decomp_lines = decompilation
+        self.curr_line = resp["curr_line"]
+        self.curr_func = resp["func_name"]
+
+        # update the data known in the function (stack variables)
+        print("updating function data")
+        self.decompiler.update_function_data(rebased_pc)
+        print("finished updating function data")
+        return True
+
+    def display_pane(self):
+        """
+        Display the current decompilation, with an arrow next to the current line.
+        """
+        if not self.decompiler.connected:
+            return
+
+        if not self.ready_to_display:
+            err("Unable to decompile function")
+            return
+
+        # configure based on source config
+        past_lines_color = "gray"
+        nb_lines = 6
+        cur_line_color = "green"
+
+        if len(self.decomp_lines) < nb_lines:
+            nb_lines = len(self.decomp_lines)
+
+        # use GEF source printing method
+        for i in range(self.curr_line - nb_lines + 1, self.curr_line + nb_lines):
+            if i < 0:
+                continue
+
+            if i < self.curr_line:
+                pprint(
+                    "{}".format(Color.colorify("  {:4d}\t {:s}".format(i + 1, self.decomp_lines[i], ), past_lines_color))
+                )
+
+            if i == self.curr_line:
+                prefix = "{}{:4d}\t ".format(RIGHT_ARROW[1:], i + 1)
+                pprint(Color.colorify("{}{:s}".format(prefix, self.decomp_lines[i]), cur_line_color))
+
+            if i > self.curr_line:
+                try:
+                    pprint("  {:4d}\t {:s}".format(i + 1, self.decomp_lines[i], ))
+                except IndexError:
+                    break
+        return
+
+    def title(self):
+        """
+        Special note: this function is always called before display_pane
+        """
+        if not self.decompiler.connected:
+            return None
+
+        self.ready_to_display = self.update_event(pc())
+
+        if self.ready_to_display:
+            title = "decompiler:{:s}:{:s}:{:d}".format(self.decompiler.name, self.curr_func, self.curr_line+1)
+        else:
+            title = "decompiler:{:s}:error".format(self.decompiler.name)
+
+        return title
+
+    def display_pane_and_title(self, *args, **kwargs):
+        print("IN PANE AND TITLE")
+
+        #
+        # title
+        #
+
+        title_ = self.title()
+
+        line_color = "gray"
+        msg_color = "cyan"
+        tty_rows, tty_columns = get_terminal_size()
+
+        if title_ is None:
+            pprint(Color.colorify(HORIZONTAL_LINE * tty_columns, line_color))
+        else:
+            trail_len = len(title_) + 6
+            title = ""
+            title += Color.colorify("{:{padd}<{width}} ".format("",
+                                                                width=max(tty_columns - trail_len, 0),
+                                                                padd=HORIZONTAL_LINE),
+                                    line_color)
+            title += Color.colorify(title_, msg_color)
+            title += Color.colorify(" {:{padd}<4}".format("", padd=HORIZONTAL_LINE),
+                                    line_color)
+            pprint(title)
+
+        #
+        # decompilation
+        #
+        print("ABOUT TO DISPLAY PANE")
+
+        self.display_pane()

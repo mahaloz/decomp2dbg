@@ -1,6 +1,9 @@
 from typing import Optional, Tuple, Any
 import platform
 import struct
+from functools import lru_cache
+import pathlib
+import os
 
 LEFT_ARROW                             = " \u2190 "
 RIGHT_ARROW                            = " \u2192 "
@@ -133,3 +136,11 @@ def ok(msg: str) -> None:
 
 def info(msg: str) -> None:
     pprint(f"{Color.colorify('[+]', 'bold blue')} {msg}")
+
+
+def gef_pystring(x: bytes) -> str:
+    """Returns a sanitized version as string of the bytes list given in input."""
+    res = str(x, encoding="utf-8")
+    substs = [("\n", "\\n"), ("\r", "\\r"), ("\t", "\\t"), ("\v", "\\v"), ("\b", "\\b"), ]
+    for x, y in substs: res = res.replace(x, y)
+    return res

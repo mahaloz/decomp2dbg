@@ -1,169 +1,8 @@
-import textwrap
-import sortedcontainers
-from .d2d_client import DecompilerClient
-from ..utils import *
-import gdb
-
+from ...utils import *
+from .utils import *
 import tempfile
-import textwrap
-import typing
-import functools
-import struct
-import os
-import hashlib
-
 from elftools.elf.elffile import ELFFile
-import sortedcontainers
-
-#gdb.events.stop.connect(foo)
-#gdb.events.stop.disconnect(foo)
-
-
-#
-# Decompiler Client Interface
-#
-
-class GDBDecompilerClient(DecompilerClient):
-    def __init__(self):
-        super(GDBDecompilerClient, self).__init__()
-
-
-
-#
-# Command Interface
-#
-
-
-class DecompilerCommand(gdb.Command):
-    def __init__(self, decompiler):
-        super(DecompilerCommand, self).__init__("decompiler", gdb.COMMAND_USER)
-        self.decompiler = decompiler
-
-    def invoke(self, arg, from_tty):
-        args = arg.split(" ")
-        if len(args) < 2:
-            self._handle_help(None)
-            return
-
-        cmd = args[0]
-        args = args[1:]
-        self._handle_cmd(cmd, args)
-
-    def _handle_cmd(self, cmd, args):
-        handler_str = f"_handle_{cmd}"
-        if hasattr(self, handler_str):
-            handler = getattr(self, handler_str)
-            handler(args)
-        else:
-            self._handler_failed("command does not exist")
-
-    def _handle_connect(self, args):
-        if len(args) < 1:
-            self._handler_failed("not enough args")
-            return
-
-        name = args[0]
-        host = "localhost"
-        port = 3662
-
-        if len(args) > 1:
-            try:
-                port_ = int(args[1])
-                port = port_
-            except ValueError:
-                host = args[1]
-
-        if len(args) > 2:
-            try:
-                port_ = int(args[2])
-                port = port_
-            except ValueError:
-                host = args[2]
-
-        connected = self.decompiler.connect(name=name, host=host, port=port)
-        if not connected:
-            err("Failed to connect to decompiler!")
-            return
-
-        info("Connected to decompiler!")
-        self._init_good_connection()
-
-    def _handle_disconnect(self, args):
-        self.decompiler.disconnect()
-        info("Disconnected decompiler!")
-
-    def _handle_help(self, args):
-        usage_str = """\
-        Usage: decompiler <command>
-
-        Commands:
-            [] connect <name> (host) (port)
-                Connects the decomp2gef plugin to the decompiler. After a successful connect, a decompilation pane
-                will be visible that will get updated with global decompiler info on each break-like event.
-
-                * name = name of the decompiler, can be anything
-                * host = host of the decompiler; will be 'localhost' if not defined
-                * port = port of the decompiler; will be 3662 if not defined
-
-            [] disconnect
-                Disconnects the decomp2gef plugin. Not needed to stop decompiler, but useful.
-
-        Examples:
-            decompiler connect ida
-            decompiler connect binja 192.168.15 3662
-            decompiler disconnect
-
-        """
-        pprint(textwrap.dedent(usage_str))
-
-    def _handler_failed(self, error):
-        pprint(f"[!] Failed to handle decompiler command: {error}.")
-        self._handle_help(None)
-
-    #
-    # Utils
-    #
-
-    """
-    def _init_good_connection(self):
-        # override gef functions that must be dealt with
-        init_gef_overrides()
-
-        # if remote, download remote binaries and initialize _proc_hash_map_
-        if is_remote_debug():
-            initialize_proc_hashmap()
-
-        # do imports on first connect
-        _decompiler_.update_symbols()
-
-        # register the context_pane after connection
-        register_external_context_pane("decompilation", _decompiler_ctx_pane_.display_pane, _decompiler_ctx_pane_.title)
-    """
-
-#
-# Symbol Mapping
-#
-
-class SymbolMapElement:
-    """
-    An element in the symbol map. Used to support range-keyed dicts. Imagine something like:
-    d[range(0x10,0x20)] = "thing"
-
-    You would be able to access thing through accessing any index between 0x10 and 0x20.
-    """
-
-    __slots__ = ('start', 'length', 'sym')
-
-    def __init__(self, start, length, sym):
-        self.start: int = start
-        self.length: int = length
-        self.sym = sym
-
-    def __contains__(self, offset):
-        return self.start <= offset < self.start + self.length
-
-    def __repr__(self):
-        return "<%d-%d: %s>" % (self.start, self.start + self.length, self.sym)
+import gdb
 
 
 class SymbolMapper:
@@ -173,8 +12,7 @@ class SymbolMapper:
     """
 
     __slots__ = (
-        '_symmap',
-        '_sym_to_addr_tbl',
+        'text_base_addr',
         '_elf_cache',
         '_objcopy',
         '_gcc',
@@ -182,74 +20,14 @@ class SymbolMapper:
         '_sym_file_ctr'
     )
 
-    DUPLICATION_CHECK = False
-
     def __init__(self):
-        self._symmap = sortedcontainers.SortedDict()
-        self._sym_to_addr_tbl = {}
-
+        self.text_base_addr = None
         self._elf_cache = {}
         self._objcopy = None
         self._gcc = None
         self._last_sym_files = set()
         self._sym_file_ctr = 0
 
-    #
-    # Public API for mapping
-    #
-
-    def items(self):
-        return self._symmap.items()
-
-    def add_mapping(self, start_pos, length, sym):
-        # duplication check
-        if self.DUPLICATION_CHECK:
-            try:
-                pre = next(self._symmap.irange(maximum=start_pos, reverse=True))
-                if start_pos in self._symmap[pre]:
-                    raise ValueError("New mapping is overlapping with an existing element.")
-            except StopIteration:
-                pass
-
-        self._sym_to_addr_tbl[sym] = start_pos
-        self._symmap[start_pos] = SymbolMapElement(start_pos, length, sym)
-
-    def rename_symbol(self, symbol: str):
-        sym_addr = self.lookup_addr_from_symbol(symbol)
-        if not sym_addr:
-            return False
-
-        element = self._get_element(sym_addr)
-        element.sym = sym_addr
-        self._sym_to_addr_tbl[symbol] = sym_addr
-        return True
-
-    def lookup_addr_from_symbol(self, symbol: str):
-        try:
-            addr = self._sym_to_addr_tbl[symbol]
-        except KeyError:
-            return None
-
-        return addr
-
-    def lookup_symbol_from_addr(self, addr: int):
-        element = self._get_element(addr)
-        if element is None:
-            return None
-
-        offset = addr - element.start
-        return element.sym, offset
-
-    def _get_element(self, pos: int) -> typing.Optional[SymbolMapElement]:
-        try:
-            pre = next(self._symmap.irange(maximum=pos, reverse=True))
-        except StopIteration:
-            return None
-
-        element = self._symmap[pre]
-        if pos in element:
-            return element
-        return None
 
     #
     # Native Symbol Support (Linux Only)
@@ -277,11 +55,12 @@ class SymbolMapper:
             info("If you are on Linux and want native symbol support make sure you have gcc and objcopy.")
             return False
 
+        if not self.text_base_addr:
+            err("Base address of the binary has not been discovered yet, please run the binary and try again.")
+            return False
+
         # info("{:d} symbols will be added".format(len(sym_info_list)))
         self._delete_old_sym_files()
-
-        # locate the base address of the binary
-        text_base = get_text_base_address()
 
         # add each symbol into a mass symbol commit
         max_commit_size = 1500
@@ -299,7 +78,7 @@ class SymbolMapper:
             queued_sym_sizes[i % max_commit_size] = size
 
             # absolute addressing
-            if addr >= text_base:
+            if addr >= self.text_base_addr:
                 addr_str = "{:#x}".format(addr)
             # relative addressing
             else:
@@ -315,7 +94,7 @@ class SymbolMapper:
             # batch commit
             if i > 1 and i % max_commit_size == 0:
                 # add the queued symbols
-                self._add_symbol_file(fname, objcopy_cmds, text_base, queued_sym_sizes)
+                self._add_symbol_file(fname, objcopy_cmds, self.text_base_addr, queued_sym_sizes)
 
                 # re-init queues and elf
                 fname = self._construct_small_elf()
@@ -324,7 +103,7 @@ class SymbolMapper:
 
         # commit remaining symbol commands
         if objcopy_cmds:
-            self._add_symbol_file(fname, objcopy_cmds, text_base, queued_sym_sizes)
+            self._add_symbol_file(fname, objcopy_cmds, self.text_base_addr, queued_sym_sizes)
 
         return True
 
@@ -401,7 +180,6 @@ class SymbolMapper:
         elf_data[sect_off+32: sect_off + 32 + len(patch)] = patch
         return elf_data
 
-
     def _force_update_sym_sizes(self, fname, queued_sym_sizes):
         # use pyelftools to obtain accurate offsets and assign symbol sizes
 
@@ -467,14 +245,3 @@ class SymbolMapper:
         os.unlink(fname)
         return
 
-#
-#
-#
-
-class GDBClient:
-    def __init__(self):
-        self.decompiler = DecompilerClient()
-        self.command = DecompilerCommand(self.decompiler)
-
-    def __del__(self):
-        del self.command
