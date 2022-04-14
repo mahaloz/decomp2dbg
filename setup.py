@@ -8,8 +8,8 @@ except ImportError:
     packages = [x.strip('./').replace('/','.') for x in os.popen('find -name "__init__.py" | xargs -n1 dirname').read().strip().split('\n')]
 
 setup(
-    name='decomp2gef',
-    version='1.2.0',
+    name='decomp2dbg',
+    version='2.2.0',
     packages=packages,
     install_requires=[
         "sortedcontainers",

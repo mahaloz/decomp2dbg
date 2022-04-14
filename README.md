@@ -1,8 +1,8 @@
-# decomp2gef
+# decomp2dbg
 A plugin to introduce a generic API for decompiler usage and syncing in GDB with the 
 help of the [GEF](https://github.com/hugsy/gef) plugin.
 
-![decomp2gef](./assets/decomp2gef.png)
+![decomp2dbg](./assets/decomp2dbg.png)
 
 [IDA Demo](https://asciinema.org/a/442740)
 
@@ -17,7 +17,7 @@ The easiest and fastest way to install is using the `install.sh` script!
 ```
 
 Make sure to define the correct option for your decompiler of choice. Use `--help` for more info!
-Note: You may need to allow inbound connections on port 3662, or the port you use, for decomp2gef to connect
+Note: You may need to allow inbound connections on port 3662, or the port you use, for decomp2dbg to connect
 to the decompiler. 
 
 ## Install (manual)
@@ -34,7 +34,7 @@ cp -r ./decompilers/d2d_ida/* /path/to/ida/plugins/
 If you also need to install the gdb side of things, use the line below: 
 ```bash
 pip3 install . && \
-cp decomp2gef.py ~/.decomp2gef.py && echo "source ~/.decomp2gef.py" >> ~/.gdbinit
+cp decomp2dbg.py ~/.decomp2dbg.py && echo "source ~/.decomp2gef.py" >> ~/.gdbinit
 ```
 
 ## Usage 

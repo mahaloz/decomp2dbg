@@ -195,7 +195,7 @@ class DecompilerCommand(gdb.Command):
 
         Commands:
             [] connect <name> (host) (port)
-                Connects the decomp2gef plugin to the decompiler. After a successful connect, a decompilation pane
+                Connects the decomp2dbg plugin to the decompiler. After a successful connect, a decompilation pane
                 will be visible that will get updated with global decompiler info on each break-like event.
 
                 * name = name of the decompiler, can be anything
@@ -203,7 +203,7 @@ class DecompilerCommand(gdb.Command):
                 * port = port of the decompiler; will be 3662 if not defined
 
             [] disconnect
-                Disconnects the decomp2gef plugin. Not needed to stop decompiler, but useful.
+                Disconnects the decomp2dbg plugin. Not needed to stop decompiler, but useful.
 
         Examples:
             decompiler connect ida
