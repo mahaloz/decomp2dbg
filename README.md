@@ -22,7 +22,8 @@ Make sure to define the correct option for your decompiler of choice. Use `--hel
 Note: You may need to allow inbound connections on port 3662, or the port you use, for decomp2dbg to connect
 to the decompiler. 
 
-> Note: after install its important that you check your `~/.gdbinit`
+> Note: If you are installing decomp2dbg with GEF or pwndbg it's important that in your ~/.gdbinit the
+> decomp2dbg.py file is sourced after GEF or pwndbg.
 
 ## Install (manual)
 If you can't use the script (non-WSL Windows install for the decompiler), follow the steps below: 
