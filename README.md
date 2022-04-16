@@ -1,6 +1,8 @@
 # decomp2dbg
 A plugin to introduce a generic API for decompiler-to-debugger symbol syncing a decopilation
 printing. In effect, a simple way to debug a black-box binary as if you had pseudo source symbols.
+Currently supported in GDB with any additional plugin like [GEF](https://github.com/hugsy/gef) or 
+[pwndbg](https://github.com/pwndbg/pwndbg).
 
 ![decomp2dbg](./assets/decomp2dbg.png)
 
@@ -19,6 +21,8 @@ The easiest and fastest way to install is using the `install.sh` script!
 Make sure to define the correct option for your decompiler of choice. Use `--help` for more info!
 Note: You may need to allow inbound connections on port 3662, or the port you use, for decomp2dbg to connect
 to the decompiler. 
+
+> Note: after install its important that you check your `~/.gdbinit`
 
 ## Install (manual)
 If you can't use the script (non-WSL Windows install for the decompiler), follow the steps below: 
@@ -46,7 +50,7 @@ see a message in your decompiler
 [+] Registered decompilation server!
 ```
 
-Next, in gdb, run:
+Next, in your debugger, run:
 ```bash
 decompiler connect <decompiler_name>
 ```
@@ -101,26 +105,37 @@ p $a1
 Note: `$v4` in this case will only be mapped for as long as you are in the same function. Once you leave the function
 it may be unmapped or remapped to another value.
 
-## Features 
+## Abstract
+The reverse engineering process often involves both static (decompilers) and dynamic (debuggers) analysis to
+achieve understanding of a binary target. Although this process is used often, the cost to context-switch between
+dynamic and static analysis is high. Attempts to bridge this gap often fail to incorporate the live-updates of dynamic
+analysis while preserving the structured types and names of static analysis. 
+
+Decompilers and debuggers often [share many things in common](https://github.com/angr/binsync). During the reversing process, engineers produce reverse
+engineering artifacts (REAs). These REAs are often diffs of the original data found in static analysis. The
+most common REAs are:
+- stack variables
+- global variables
+- structs
+- enums
+- function headers
+- comments
+
+Utilizing REAs, decomp2dbg aims to shorten the gap between using static and dynamic analysis to understand
+a given binary target. 
+
+## Features
 - [X] Auto-updating decompilation context view
 - [X] Auto-syncing function names
 - [X] Breakable/Inspectable symbols
 - [X] Auto-syncing stack variable names
 - [ ] Auto-syncing structs
 
-## Abstract
-The reverse engineering process often involves a decompiler, making it fundamental to
-support in a debugger since context switching knowledge between the two is hard. Decompilers
-have a lot in common. During the reversing process there are reverse engineering artifacts (REA).
-These REAs are common across all decompilers:
-- stack variables
-- global variables
-- structs
-- enums
-- function headers (name, ret type, args)
-- comments
-
-Knowledge of REAs can be used to do lots of things, like [sync REAs across decompilers](https://github.com/angr/binsync) or
-create a common interface for a debugger to display decompilation information. GEF is currently
-one of the best gdb upgrades making it a perfect place to first implement this idea. In the future,
-it should be easily transferable to any debugger supporting python3.
+## Supported Platforms
+### Debuggers
+- **GDB**
+  - Any plugin like **pwndbg** and **gef**.
+### Decompilers
+- IDA Pro
+- Binary Ninja
+- [angr-decompiler](https://github.com/angr/angr-management)
