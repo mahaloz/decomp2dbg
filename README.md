@@ -1,12 +1,12 @@
 # decomp2dbg
-A plugin to introduce a generic API for decompiler usage and syncing in GDB with the 
-help of the [GEF](https://github.com/hugsy/gef) plugin.
+A plugin to introduce a generic API for decompiler-to-debugger symbol syncing a decopilation
+printing. In effect, a simple way to debug a black-box binary as if you had pseudo source symbols.
 
 ![decomp2dbg](./assets/decomp2dbg.png)
 
-[IDA Demo](https://asciinema.org/a/442740)
+[IDA Demo w/ GEF](https://asciinema.org/a/442740)
 
-[Binja Demo](https://t.co/M2IZd0fmi3)
+[Binja Demo w/ GEF](https://t.co/M2IZd0fmi3)
 
 [![Discord](https://img.shields.io/discord/900841083532087347?label=Discord&style=plastic)](https://discord.gg/wZSCeXnEvR)
 
