@@ -13,7 +13,6 @@ setup(
     packages=packages,
     install_requires=[
         "sortedcontainers",
-        "PyQT5",
         "pyelftools"
     ],
     description='Syncing framework for decompilers and debuggers',

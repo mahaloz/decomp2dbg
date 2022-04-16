@@ -1,20 +1,12 @@
 import textwrap
+
+import gdb
+
 from ..client import DecompilerClient
 from ...utils import *
 from .utils import *
 from .symbol_mapper import SymbolMapper
 from .decompiler_pane import DecompilerPane
-
-import gdb
-
-import tempfile
-import textwrap
-import typing
-import functools
-import struct
-import os
-import hashlib
-
 
 #
 # Decompiler Client Interface
@@ -46,6 +38,9 @@ class GDBDecompilerClient(DecompilerClient):
 
     def decompiler_connected(self):
         self.gdb_client.on_decompiler_connected(self.name)
+
+    def decompiler_disconnected(self):
+        self.gdb_client.on_decompiler_disconnected(self.name)
 
     def update_symbols(self):
         self.symbol_mapper.text_base_addr = self.text_base_addr
@@ -90,17 +85,23 @@ class GDBDecompilerClient(DecompilerClient):
         func_data = self.function_data(addr)
         args = func_data["args"]
         stack_vars = func_data["stack_vars"]
+        arch_args = get_arch_func_args()
 
-        # TODO: reinstate function arguments by reimplementing arch IDing
-        #for idx, arg in list(args.items())[:len(gef.arch.function_parameters)]:
-        #    idx = int(idx, 0)
-        #    expr = f"""(({arg['type']}) {gef.arch.function_parameters[idx]}"""
-        #    try:
-        #        val = gdb.parse_and_eval(expr)
-        #        gdb.execute(f"set ${arg['name']} {val}")
-        #    except Exception as e:
-        #        pass
-        #        #gdb.execute(f'set ${arg["name"]} NA')
+        for idx, arg in list(args.items())[:len(arch_args)]:
+            idx = int(idx, 0)
+            expr = f"""(({arg['type']}) {arch_args[idx]}"""
+
+            try:
+                val = gdb.parse_and_eval(expr)
+                gdb.execute(f"set ${arg['name']} {val}")
+                continue
+            except Exception:
+                pass
+
+            try:
+                gdb.execute(f'set ${arg["name"]} NA')
+            except Exception:
+                pass
 
         for offset, stack_var in stack_vars.items():
             offset = int(offset, 0)
@@ -126,6 +127,7 @@ class GDBDecompilerClient(DecompilerClient):
                     gdb.execute(f"set ${stack_var['name']} = ($fp - {offset})")
                 except Exception:
                     continue
+
 
 #
 # Command Interface
@@ -245,3 +247,6 @@ class GDBClient:
 
         self.dec_client.update_symbols()
         self.register_decompiler_context_pane(decompiler_name)
+
+    def on_decompiler_disconnected(self, decompiler_name):
+        self.deregister_decompiler_context_pane(decompiler_name)

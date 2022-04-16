@@ -9,11 +9,46 @@ import re
 import tempfile
 import hashlib
 
+from elftools.elf.elffile import ELFFile
+
 from ...utils import gef_pystring, warn, err
 
 import gdb
 
 GLOBAL_TMP_DIR = os.path.join(tempfile.gettempdir(), "d2d")
+ARCH = None
+
+
+def identify_arch():
+    global ARCH
+    if ARCH:
+        return ARCH
+
+    with open(get_filepath(), "rb") as fp:
+        elf = ELFFile(fp)
+
+    ARCH = elf.get_machine_arch()
+    return ARCH
+
+
+def get_arch_func_args():
+    # args taken from GEF
+    arch_args = {
+        "x64": ["$rdi", "$rsi", "$rdx", "$rcx", "$r8", "$r9"],
+        "x86": [f'$esp+{x}' for x in range(0, 28, 4)],
+        "ARM": ["$r0", "$r1", "$r2", "$r3"],
+        "SPARC": ["$o0 ", "$o1 ", "$o2 ", "$o3 ", "$o4 ", "$o5 ", "$o7 "],
+        "MIPS": ["$a0", "$a1", "$a2", "$a3"],
+        "RISC-V": ["$a0", "$a1", "$a2", "$a3", "$a4", "$a5", "$a6", "$a7"]
+    }
+
+    arch = identify_arch()
+    try:
+        args = arch_args[arch]
+    except KeyError:
+        args = []
+
+    return args
 
 
 def vmmap_base_addrs():

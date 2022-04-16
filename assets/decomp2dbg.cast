@@ -1,7 +1,7 @@
 {"version": 2, "width": 270, "height": 63, "timestamp": 1634458053, "env": {"SHELL": "/bin/zsh", "TERM": "screen-256color"}}
 [0.208296, "o", "\u001b[1m\u001b[3m%\u001b[23m\u001b[1m\u001b[0m                                                                                                                                                                                                                                                                             \r \r\u001bk~/gef_tests\u001b\\"]
 [0.245586, "o", "\r\u001b[0m\u001b[23m\u001b[24m\u001b[J\u001b[39m\u001b[0m\u001b[49m\u001b[100m \u001b[97mλ \u001b[45m\u001b[90m \u001b[30mparallels@parallels-moku \u001b[102m\u001b[35m \u001b[30m~/gef_tests \u001b[49m\u001b[92m\u001b[39m \r\n▶ \u001b[K\u001b[?1h\u001b=\u001b[?2004h"]
-[0.742486, "o", "asciinema rec decomp2gef.cast"]
+[0.742486, "o", "asciinema rec decomp2dbg.cast"]
 [1.212674, "o", "\u001b[29Dclear                        \u001b[24D"]
 [1.526681, "o", "\b\b\b\b\bgdb ./objdump"]
 [2.187617, "o", "\u001b[?1l\u001b>\u001b[?2004l\r\r\n"]

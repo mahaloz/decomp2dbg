@@ -54,7 +54,7 @@ version() {
 install_ida() {
     if [ -z "${LINK}" ]; then
         echo "INSTALLING: IDA plugin without linking to ${IDA_PATH}"
-        cp -r "${LOC}/decompilers/d2d_ida/*" "$IDA_PATH" && \
+        cp -r ${LOC}/decompilers/d2d_ida/* "$IDA_PATH" && \
         echo "IDA install was successful!" && \
         return
     else
