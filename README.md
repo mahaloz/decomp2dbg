@@ -43,7 +43,8 @@ cp decomp2dbg.py ~/.decomp2dbg.py && echo "source ~/.decomp2gef.py" >> ~/.gdbini
 ```
 
 ## Usage 
-First, start the decompilation server on your decompiler. This can be done by using the hotkey `Ctrl-Shift-D`,
+First, start the decompilation server on your decompiler. You may want to wait
+until your decompiler finishes its normal analysis before starting it. After normal analysis, this can be done by using the hotkey `Ctrl-Shift-D`,
 or selecting the `decomp2GEF: configure` tab in your associated plugins tab (under `Tools` in Binja). After starting the server, you should
 see a message in your decompiler
 ```
