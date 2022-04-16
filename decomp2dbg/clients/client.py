@@ -43,7 +43,14 @@ class DecompilerClient:
             self.server = None
             return False
 
+        self.decompiler_connected()
         return True
+
+    def decompiler_connected(self):
+        pass
+
+    def decompiler_disconnected(self):
+        pass
 
     #
     # Decompiler Interface
@@ -57,6 +64,7 @@ class DecompilerClient:
             pass
 
         self.server = None
+        self.decompiler_disconnected()
 
     @only_if_connected
     def decompile(self, addr):

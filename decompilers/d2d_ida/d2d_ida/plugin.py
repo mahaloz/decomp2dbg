@@ -1,3 +1,12 @@
+#
+# ██████╗ ███████╗ ██████╗ ██████╗ ███╗   ███╗██████╗ ██████╗ ██████╗ ██████╗  ██████╗
+# ██╔══██╗██╔════╝██╔════╝██╔═══██╗████╗ ████║██╔══██╗╚════██╗██╔══██╗██╔══██╗██╔════╝
+# ██║  ██║█████╗  ██║     ██║   ██║██╔████╔██║██████╔╝ █████╔╝██║  ██║██████╔╝██║  ███╗
+# ██║  ██║██╔══╝  ██║     ██║   ██║██║╚██╔╝██║██╔═══╝ ██╔═══╝ ██║  ██║██╔══██╗██║   ██║
+# ██████╔╝███████╗╚██████╗╚██████╔╝██║ ╚═╝ ██║██║     ███████╗██████╔╝██████╔╝╚██████╔╝
+# ╚═════╝ ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚══════╝╚═════╝ ╚═════╝  ╚═════╝
+#
+
 import traceback
 import threading
 
@@ -47,7 +56,7 @@ class ConfigDialog(QDialog):
     def __init__(self, change_hook, parent=None):
         super().__init__(parent)
         self.change_hook = change_hook
-        self.setWindowTitle("Configure Decomp2GEF")
+        self.setWindowTitle("Configure Decomp2DBG")
         self._main_layout = QVBoxLayout()
         self._host_edit = None  # type:QLineEdit
         self._port_edit = None  # type:QLineEdit
@@ -123,7 +132,7 @@ class ConfigDialog(QDialog):
             # start hooks on good connection
             self.change_hook.hook()
         except Exception as e:
-            QMessageBox(self).critical(None, "Error starting Decomp2GEF Server", str(e))
+            QMessageBox(self).critical(None, "Error starting Decomp2DBG Server", str(e))
             traceback.print_exc()
             return
 
@@ -148,13 +157,13 @@ class IDAActionHandler(idaapi.action_handler_t):
         return idaapi.AST_ENABLE_ALWAYS
 
 
-class Decomp2GEFPlugin(QObject, idaapi.plugin_t):
+class Decomp2DBGPlugin(QObject, idaapi.plugin_t):
     """Plugin entry point. Does most of the skinning magic."""
 
     flags = idaapi.PLUGIN_FIX
     comment = "Syncing decompiler info to GDB"
-    help = "Decomp2GEF Help"
-    wanted_name = "Decomp2GEF: configure"
+    help = "Decomp2DBG Help"
+    wanted_name = "Decomp2DBG: configure"
     wanted_hotkey = "Ctrl-Shift-D"
 
     def __init__(self, *args, **kwargs):

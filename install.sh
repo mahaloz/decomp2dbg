@@ -2,7 +2,7 @@
 
 print_help() {
     echo "\
-OVERVIEW: decomp2gef server & client installer
+OVERVIEW: decomp2dbg server & client installer
 
 USAGE: install.sh [options]
 
@@ -16,8 +16,8 @@ Decompiler Install Options:
   For help finding your 'plugins' folder, see the docs for advice.
 
 Generic Options:
-  --link                           - Link files with ln instead of copying them. Do this only if you plan on keeping the decomp2gef GitHub repo in the 
-                                     the same place for a while. Useful if you update decomp2gef frequently, since you will only need to pull.
+  --link                           - Link files with ln instead of copying them. Do this only if you plan on keeping the decomp2dbg GitHub repo in the
+                                     the same place for a while. Useful if you update decomp2dbg frequently, since you will only need to pull.
   --no-client                      - Do not install the client (gdb and pip install). Useful if you are using a decompiler on another machine or VM!
   --version                        - Display the version of this program
   --help                           - Display available options
@@ -30,17 +30,17 @@ EXAMPLES:
   install.sh --help
 
 
-Please only use this script inside the decomp2gef repo directory.
+Please only use this script inside the decomp2dbg repo directory.
 "
 exit 1
 }
 
 LOC="$(realpath .)"
-validate_in_decomp2gef() {
-    if test -f "${LOC}/decomp2gef.py"; then
+validate_in_decomp2dbg() {
+    if test -f "${LOC}/decomp2dbg.py"; then
         :
     else
-        echo "ERROR: not in decomp2gef repo directory!"
+        echo "ERROR: not in decomp2dbg repo directory!"
         print_help
     fi
 }
@@ -54,13 +54,13 @@ version() {
 install_ida() {
     if [ -z "${LINK}" ]; then
         echo "INSTALLING: IDA plugin without linking to ${IDA_PATH}"
-        cp -r "${LOC}/decompilers/d2g_ida/*" "$IDA_PATH" && \
+        cp -r ${LOC}/decompilers/d2d_ida/* "$IDA_PATH" && \
         echo "IDA install was successful!" && \
         return
     else
         echo "INSTALLING: IDA plugin WITH linking to ${IDA_PATH}"
-        ln -s "${LOC}/decompilers/d2g_ida/decomp2gef_ida.py" "$IDA_PATH" && \
-        ln -s "${LOC}/decompilers/d2g_ida/d2g_ida/" "$IDA_PATH" && \
+        ln -s "${LOC}/decompilers/d2d_ida/decomp2dbg_ida.py" "$IDA_PATH" && \
+        ln -s "${LOC}/decompilers/d2d_ida/d2d_ida/" "$IDA_PATH" && \
         echo "IDA install was successful!" && \
         return
     fi
@@ -70,12 +70,12 @@ install_ida() {
 install_binja() {
     if [ -z "${LINK}" ]; then
         echo "INSTALLING: Binja plugin without linking to ${BINJA_PATH}"
-        cp -r "${LOC}/decompilers/d2g_binja/" "$BINJA_PATH" && \
+        cp -r "${LOC}/decompilers/d2d_binja/" "$BINJA_PATH" && \
         echo "Binja install was successful!" && \
         return
     else
         echo "INSTALLING: Binja plugin WITH linking to ${BINJA_PATH}"
-        ln -s "${LOC}/decompilers/d2g_binja/" "$BINJA_PATH" && \
+        ln -s "${LOC}/decompilers/d2d_binja/" "$BINJA_PATH" && \
         echo "Binja install was successful!" && \
         return
     fi
@@ -85,12 +85,12 @@ install_binja() {
 install_angr() {
     if [ -z "${LINK}" ]; then
         echo "INSTALLING: angr plugin without linking to ${ANGR_PATH}"
-        cp -r "${LOC}/decompilers/d2g_angr/" "$ANGR_PATH" && \
+        cp -r "${LOC}/decompilers/d2d_angr/" "$ANGR_PATH" && \
         echo "angr install was successful!" && \
         return
     else
         echo "INSTALLING: angr plugin WITH linking to ${ANGR_PATH}"
-        ln -s "${LOC}/decompilers/d2g_angr/" "$ANGR_PATH" && \
+        ln -s "${LOC}/decompilers/d2d_angr/" "$ANGR_PATH" && \
         echo "angr install was successful!" && \
         return
     fi
@@ -101,14 +101,14 @@ install_client() {
     pip3 install .
     if [ -z "${LINK}" ]; then
         echo "INSTALLING: gdb client without linking."
-        cp "${LOC}/decomp2gef.py" ~/.decomp2gef.py && \
-        echo "source ~/.decomp2gef.py" >> ~/.gdbinit && \
+        cp "${LOC}/decomp2dbg.py" ~/.decomp2dbg.py && \
+        echo "source ~/.decomp2dbg.py" >> ~/.gdbinit && \
         echo "gdb client install was successful!"
         return
     else
         echo "INSTALLING: gdb client WITH linking."
-        ln -s "${LOC}/decomp2gef.py" ~/.decomp2gef.py && \
-        echo "source ~/.decomp2gef.py" >> ~/.gdbinit && \
+        ln -s "${LOC}/decomp2dbg.py" ~/.decomp2dbg.py && \
+        echo "source ~/.decomp2dbg.py" >> ~/.gdbinit && \
         echo "gdb client install was successful!"
         return
     fi

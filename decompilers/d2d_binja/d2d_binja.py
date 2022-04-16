@@ -1,3 +1,12 @@
+#
+# ██████╗ ███████╗ ██████╗ ██████╗ ███╗   ███╗██████╗ ██████╗ ██████╗ ██████╗  ██████╗
+# ██╔══██╗██╔════╝██╔════╝██╔═══██╗████╗ ████║██╔══██╗╚════██╗██╔══██╗██╔══██╗██╔════╝
+# ██║  ██║█████╗  ██║     ██║   ██║██╔████╔██║██████╔╝ █████╔╝██║  ██║██████╔╝██║  ███╗
+# ██║  ██║██╔══╝  ██║     ██║   ██║██║╚██╔╝██║██╔═══╝ ██╔═══╝ ██║  ██║██╔══██╗██║   ██║
+# ██████╔╝███████╗╚██████╗╚██████╔╝██║ ╚═╝ ██║██║     ███████╗██████╔╝██████╔╝╚██████╔╝
+# ╚═════╝ ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚══════╝╚═════╝ ╚═════╝  ╚═════╝
+#
+
 import threading
 import traceback
 
@@ -26,7 +35,7 @@ class ConfigDialog(QDialog):
     def __init__(self, bv, parent=None):
         super().__init__(parent)
         self.bv = bv
-        self.setWindowTitle("Configure Decomp2GEF")
+        self.setWindowTitle("Configure Decomp2DBG")
         self._main_layout = QVBoxLayout()
         self._host_edit = None  # type:QLineEdit
         self._port_edit = None  # type:QLineEdit
@@ -118,12 +127,12 @@ class BinjaPlugin:
 
     def _init_ui(self):
         # config dialog
-        configure_binsync_id = "Decomp2GEF: Configure"
+        configure_binsync_id = "Decomp2GDBG: Configure"
         UIAction.registerAction(configure_binsync_id)
         UIActionHandler.globalActions().bindAction(
             configure_binsync_id, UIAction(self._launch_config)
         )
-        Menu.mainMenu("Tools").addAction(configure_binsync_id, "Decomp2GEF")
+        Menu.mainMenu("Tools").addAction(configure_binsync_id, "Decomp2DBG")
 
     def _launch_config(self, bn_context):
         bv = bn_context.binaryView
