@@ -20,7 +20,7 @@ class GDBDecompilerClient(DecompilerClient):
         self.symbol_mapper = SymbolMapper()
 
     @property
-    @lru_cache
+    @lru_cache()
     def text_base_addr(self):
         return self.gdb_client.text_segment_base_addr
 
