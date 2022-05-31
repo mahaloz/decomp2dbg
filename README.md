@@ -1,5 +1,5 @@
 # decomp2dbg
-A plugin to introduce a generic API for decompiler-to-debugger symbol syncing a decopilation
+A plugin to introduce a generic API for decompiler-to-debugger symbol syncing and decompilation
 printing. In effect, a simple way to debug a black-box binary as if you had pseudo source symbols.
 Currently supported in GDB with any additional plugin like [GEF](https://github.com/hugsy/gef) or 
 [pwndbg](https://github.com/pwndbg/pwndbg).
