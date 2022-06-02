@@ -242,9 +242,7 @@ class GDBClient:
     #
 
     def on_decompiler_connected(self, decompiler_name):
-        if not self.text_segment_base_addr:
-            self.text_segment_base_addr = find_text_segment_base_addr(is_remote=is_remote_debug())
-
+        self.text_segment_base_addr = find_text_segment_base_addr(is_remote=is_remote_debug())
         self.dec_client.update_symbols()
         self.register_decompiler_context_pane(decompiler_name)
 
