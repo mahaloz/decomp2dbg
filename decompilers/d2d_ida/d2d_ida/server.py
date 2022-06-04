@@ -230,6 +230,9 @@ class IDADecompilerServer:
         known_segs = [".data", ".bss"]
         for seg_name in known_segs:
             seg = idaapi.get_segm_by_name(seg_name)
+            if not seg:
+                continue
+
             for seg_ea in range(seg.start_ea, seg.end_ea):
                 xrefs = idautils.XrefsTo(seg_ea)
                 try:
