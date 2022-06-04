@@ -143,7 +143,8 @@ class IDADecompilerServer:
     def function_data(self, addr):
         resp = {
             "args": None,
-            "stack_vars": None
+            "stack_vars": None,
+            "reg_vars": None,
         }
 
         # get the function
@@ -157,6 +158,39 @@ class IDADecompilerServer:
             cfunc = ida_hexrays.decompile(func_addr)
         except Exception as e:
             return resp
+
+        # get var info
+        frame = idaapi.get_frame(func_addr)
+        stack_vars = {}
+        reg_vars = {}
+
+        for var in cfunc.lvars:
+            if not var.name:
+                continue
+
+            # stack variables
+            if var.is_stk_var():
+                offset = cfunc.mba.stacksize \
+                         - var.location.stkoff() \
+                         + idaapi.get_member_size(frame.get_member(frame.memqty - 1))
+
+                print(var.name, hex(offset))
+                stack_vars[str(offset)] = {
+                    "name": var.name,
+                    "type": str(var.type())
+                }
+
+            # register variables
+            elif var.is_reg_var():
+                regnum = var.get_reg1()
+                reg_name = idaapi.get_mreg_name(regnum, var.width)
+
+                reg_vars[var.name] = {
+                    "reg_name": reg_name,
+                    "type": str(var.type())
+                }
+                pass
+
 
         # stack var info
         frame = idaapi.get_frame(func_addr)

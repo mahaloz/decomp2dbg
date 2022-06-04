@@ -81,14 +81,26 @@ class GDBDecompilerClient(DecompilerClient):
     def update_function_headers(self):
         return self.function_headers
 
+    def _clean_type_str(self, type_str):
+        if "__" in type_str:
+            type_str = type_str.replace("__", "")
+            idx = type_str.find("[")
+            if idx != -1:
+                type_str = type_str[:idx] + "_t" + type_str[idx:]
+            else:
+                type_str += "_t"
+        type_str = type_str.replace("unsigned ", "u")
+
+        return type_str
+
     def update_function_data(self, addr):
         func_data = self.function_data(addr)
-        args = func_data["args"]
+        reg_vars = func_data["reg_vars"]
         stack_vars = func_data["stack_vars"]
         arch_args = get_arch_func_args()
 
-        for idx, arg in list(args.items())[:len(arch_args)]:
-            idx = int(idx, 0)
+        for name, var in reg_vars.items():
+            type_str = self._clean_type_str(var['type'])
             expr = f"""(({arg['type']}) {arch_args[idx]}"""
 
             try:
@@ -105,16 +117,8 @@ class GDBDecompilerClient(DecompilerClient):
 
         for offset, stack_var in stack_vars.items():
             offset = int(offset, 0)
-            if "__" in  stack_var["type"]:
-                stack_var["type"] = stack_var["type"].replace("__", "")
-                idx = stack_var["type"].find("[")
-                if idx != -1:
-                    stack_var["type"] = stack_var["type"][:idx] + "_t" + stack_var["type"][idx:]
-                else:
-                    stack_var["type"] += "_t"
-            stack_var["type"] = stack_var["type"].replace("unsigned ", "u")
-
-            expr = f"""({stack_var['type']}*) ($fp -  {offset})"""
+            type_str = self._clean_type_str(stack_var['type'])
+            expr = f"""({type_str}*) ($rbpp -  {offset})"""
 
             try:
                 gdb.execute(f"set ${stack_var['name']} = " + expr)
