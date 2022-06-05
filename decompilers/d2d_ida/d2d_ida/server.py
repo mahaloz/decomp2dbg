@@ -142,8 +142,8 @@ class IDADecompilerServer:
     @execute_read
     def function_data(self, addr):
         resp = {
-            "args": None,
-            "stack_vars": None
+            "stack_vars": None,
+            "reg_vars": None
         }
 
         # get the function
@@ -158,35 +158,35 @@ class IDADecompilerServer:
         except Exception as e:
             return resp
 
-        # stack var info
-        frame = idaapi.get_frame(func_addr)
+        # get var info
         stack_vars = {}
+        reg_vars = {}
+
         for var in cfunc.lvars:
-            if not var.name or not var.location.in_stack:
+            if not var.name:
                 continue
 
-            offset = cfunc.mba.stacksize \
-                - var.location.stkoff() \
-                + idaapi.get_member_size(frame.get_member(frame.memqty - 1))
+            # stack variables
+            if var.is_stk_var():
+                offset = cfunc.mba.stacksize - var.location.stkoff()
+                stack_vars[str(offset)] = {
+                    "name": var.name,
+                    "type": str(var.type())
+                }
 
-            stack_vars[str(offset)] = {
-                "name": var.name,
-                "type": str(var.type())
-            }
+            # register variables
+            elif var.is_reg_var():
+                regnum = var.get_reg1()
+                reg_name = idaapi.get_mreg_name(regnum, var.width)
 
-        # function arguments info
-        func_args = {}
-        for arg, idx in zip(cfunc.arguments, cfunc.argidx):
-            if not arg.name:
-                continue
+                reg_vars[var.name] = {
+                    "reg_name": reg_name,
+                    "type": str(var.type())
+                }
+                pass
 
-            func_args[str(idx)] = {
-                "name": arg.name,
-                "type": str(arg.type())
-            }
-
-        resp["args"] = func_args
         resp["stack_vars"] = stack_vars
+        resp["reg_vars"] = reg_vars
 
         return resp
 
@@ -230,6 +230,9 @@ class IDADecompilerServer:
         known_segs = [".data", ".bss"]
         for seg_name in known_segs:
             seg = idaapi.get_segm_by_name(seg_name)
+            if not seg:
+                continue
+
             for seg_ea in range(seg.start_ea, seg.end_ea):
                 xrefs = idautils.XrefsTo(seg_ea)
                 try:

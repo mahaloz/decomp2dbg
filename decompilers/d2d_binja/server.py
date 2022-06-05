@@ -2,6 +2,7 @@ from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 
 from binaryninja import SymbolType, EntryRegisterValue
 from binaryninja.binaryview import BinaryDataNotification
+import binaryninja
 
 #
 # Binja Hooks
@@ -92,7 +93,7 @@ class BinjaDecompilerServer:
 
         """
         resp = {
-            "args": {},
+            "reg_vars": {},
             "stack_vars": {}
         }
 
@@ -121,15 +122,18 @@ class BinjaDecompilerServer:
                 "type": str(stack_var.type)
             }
 
-        # get args
-        func_args = {}
-        for idx, param in enumerate(func.function_type.parameters):
-            func_args[str(idx)] = {
-                "name": param.name,
-                "type": str(param.type)
+        # get reg vars
+        reg_vars = {}
+        for var in func.vars:
+            if var.source_type != binaryninja.VariableSourceType.RegisterVariableSourceType or not var.name:
+                continue
+
+            reg_vars[var.name] = {
+                "reg_name": self.bv.arch.get_reg_name(var.storage),
+                "type": str(var.type)
             }
 
-        resp["args"] = func_args
+        resp["reg_vars"] = reg_vars
         resp["stack_vars"] = stack_vars
 
         return resp
