@@ -142,9 +142,8 @@ class IDADecompilerServer:
     @execute_read
     def function_data(self, addr):
         resp = {
-            "args": None,
             "stack_vars": None,
-            "reg_vars": None,
+            "reg_vars": None
         }
 
         # get the function
