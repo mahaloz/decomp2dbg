@@ -160,7 +160,6 @@ class IDADecompilerServer:
             return resp
 
         # get var info
-        frame = idaapi.get_frame(func_addr)
         stack_vars = {}
         reg_vars = {}
 
@@ -170,11 +169,7 @@ class IDADecompilerServer:
 
             # stack variables
             if var.is_stk_var():
-                offset = cfunc.mba.stacksize \
-                         - var.location.stkoff() \
-                         + idaapi.get_member_size(frame.get_member(frame.memqty - 1))
-
-                print(var.name, hex(offset))
+                offset = cfunc.mba.stacksize - var.location.stkoff()
                 stack_vars[str(offset)] = {
                     "name": var.name,
                     "type": str(var.type())
@@ -191,36 +186,8 @@ class IDADecompilerServer:
                 }
                 pass
 
-
-        # stack var info
-        frame = idaapi.get_frame(func_addr)
-        stack_vars = {}
-        for var in cfunc.lvars:
-            if not var.name or not var.location.in_stack:
-                continue
-
-            offset = cfunc.mba.stacksize \
-                - var.location.stkoff() \
-                + idaapi.get_member_size(frame.get_member(frame.memqty - 1))
-
-            stack_vars[str(offset)] = {
-                "name": var.name,
-                "type": str(var.type())
-            }
-
-        # function arguments info
-        func_args = {}
-        for arg, idx in zip(cfunc.arguments, cfunc.argidx):
-            if not arg.name:
-                continue
-
-            func_args[str(idx)] = {
-                "name": arg.name,
-                "type": str(arg.type())
-            }
-
-        resp["args"] = func_args
         resp["stack_vars"] = stack_vars
+        resp["reg_vars"] = reg_vars
 
         return resp
 

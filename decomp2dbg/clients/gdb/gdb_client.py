@@ -97,38 +97,40 @@ class GDBDecompilerClient(DecompilerClient):
         func_data = self.function_data(addr)
         reg_vars = func_data["reg_vars"]
         stack_vars = func_data["stack_vars"]
-        arch_args = get_arch_func_args()
 
         for name, var in reg_vars.items():
             type_str = self._clean_type_str(var['type'])
-            expr = f"""(({arg['type']}) {arch_args[idx]}"""
+            reg_name = var['reg_name']
+            expr = f"""(({type_str}) (${reg_name})"""
 
             try:
                 val = gdb.parse_and_eval(expr)
-                gdb.execute(f"set ${arg['name']} {val}")
-                continue
-            except Exception:
-                pass
-
-            try:
-                gdb.execute(f'set ${arg["name"]} NA')
-            except Exception:
-                pass
-
-        for offset, stack_var in stack_vars.items():
-            offset = int(offset, 0)
-            type_str = self._clean_type_str(stack_var['type'])
-            expr = f"""({type_str}*) ($rbpp -  {offset})"""
-
-            try:
-                gdb.execute(f"set ${stack_var['name']} = " + expr)
+                gdb.execute(f"set ${name} = {val}")
                 type_unknown = False
             except Exception:
                 type_unknown = True
 
             if type_unknown:
                 try:
-                    gdb.execute(f"set ${stack_var['name']} = ($fp - {offset})")
+                    gdb.execute(f"set ${name} = (${reg_name})")
+                except Exception:
+                    continue
+
+        for offset, stack_var in stack_vars.items():
+            offset = int(offset, 0)
+            type_str = self._clean_type_str(stack_var['type'])
+            expr = f"""({type_str}*) ($fp - {offset})"""
+            var_name = stack_var['name']
+
+            try:
+                gdb.execute(f"set ${var_name} = " + expr)
+                type_unknown = False
+            except Exception:
+                type_unknown = True
+
+            if type_unknown:
+                try:
+                    gdb.execute(f"set ${var_name} = ($fp - {offset})")
                 except Exception:
                     continue
 
