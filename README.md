@@ -45,7 +45,7 @@ cp decomp2dbg.py ~/.decomp2dbg.py && echo "source ~/.decomp2dbg.py" >> ~/.gdbini
 ## Usage 
 First, start the decompilation server on your decompiler. You may want to wait
 until your decompiler finishes its normal analysis before starting it. After normal analysis, this can be done by using the hotkey `Ctrl-Shift-D`,
-or selecting the `decomp2GEF: configure` tab in your associated plugins tab (under `Tools` in Binja). After starting the server, you should
+or selecting the `decomp2GEF: configure` tab in your associated plugins tab. After starting the server, you should
 see a message in your decompiler
 ```
 [+] Starting XMLRPC server: localhost:3662
@@ -85,9 +85,9 @@ p dword_267A2C
 x dword_267A2C
 ```
 
-### Stack Variables and Function Args
+### Stack Vars, Register Vars, Func Args
 Some variables that are stored locally in a function are stack variables. For the vars that can be mapped
-to the stack, we import them as convenience variables. You can see their contents like a normal GDB convenience
+to the stack or registers, we import them as convenience variables. You can see their contents like a normal GDB convenience
 variable:
 ```bash 
 p $v4

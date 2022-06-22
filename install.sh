@@ -24,7 +24,7 @@ Generic Options:
 
 EXAMPLES:
   install.sh --ida /home/mahaloz/idapro-7.6/plugins/
-  install.sh --binja \"/Applications/Binary Ninja.app/Contents/MacOS/plugins/\"  
+  install.sh --binja /home/mahaloz/.binaryninja/plugins/
   install.sh --angr /home/mahaloz/angr-dev/angr-management/angrmanagement/plugins/ --link
   install.sh --ida /home/mahaloz/idapro-7.6/plugins/ --no-client
   install.sh --help

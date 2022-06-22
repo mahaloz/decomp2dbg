@@ -13,9 +13,12 @@ import traceback
 try:
     from PySide2.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, \
         QGridLayout
+    from PySide2.QtGui import Qt, QKeySequence
+
 except ImportError:
     from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, \
         QGridLayout
+    from PySide6.QtGui import Qt, QKeySequence
 
 
 from binaryninjaui import (
@@ -24,6 +27,7 @@ from binaryninjaui import (
     UIActionHandler,
     Menu,
 )
+from binaryninja import core_version
 
 from .server import BinjaDecompilerServer
 
@@ -127,12 +131,14 @@ class BinjaPlugin:
 
     def _init_ui(self):
         # config dialog
-        configure_binsync_id = "Decomp2GDBG: Configure"
-        UIAction.registerAction(configure_binsync_id)
+        configure_d2d_id = "Decomp2GDBG: Configure"
+        UIAction.registerAction(configure_d2d_id, QKeySequence(Qt.CTRL + Qt.SHIFT + Qt.Key_D))
         UIActionHandler.globalActions().bindAction(
-            configure_binsync_id, UIAction(self._launch_config)
+            configure_d2d_id, UIAction(self._launch_config)
         )
-        Menu.mainMenu("Tools").addAction(configure_binsync_id, "Decomp2DBG")
+
+        target_menu = "Tools" if int(core_version()[4:][:4]) < 3505 else "Plugins"
+        Menu.mainMenu(target_menu).addAction(configure_d2d_id, "Decomp2DBG")
 
     def _launch_config(self, bn_context):
         bv = bn_context.binaryView
