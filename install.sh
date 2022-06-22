@@ -59,7 +59,7 @@ install_ida() {
         return
     else
         echo "INSTALLING: IDA plugin WITH linking to ${IDA_PATH}"
-        ln -s "${LOC}/decompilers/d2d_ida/decomp2dbg_ida.py" "$IDA_PATH" && \
+        ln -s "${LOC}/decompilers/d2d_ida/d2d_ida.py" "$IDA_PATH" && \
         ln -s "${LOC}/decompilers/d2d_ida/d2d_ida/" "$IDA_PATH" && \
         echo "IDA install was successful!" && \
         return

@@ -102,7 +102,7 @@ class AngrDecompilerServer:
 
         """
         resp = {
-            "args": {},
+            "reg_vars": {},
             "stack_vars": {}
         }
 
