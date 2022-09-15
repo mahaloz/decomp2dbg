@@ -18,17 +18,23 @@ class GDBDecompilerClient(DecompilerClient):
         super(GDBDecompilerClient, self).__init__(name=name, host=host, port=port)
         self.gdb_client: "GDBClient" = gdb_client
         self.symbol_mapper = SymbolMapper()
+        self._is_pie = None
 
     @property
     @lru_cache()
     def text_base_addr(self):
         return self.gdb_client.text_segment_base_addr
 
+    @property
+    def is_pie(self):
+        if self._is_pie is None:
+            self._is_pie = self.gdb_client.is_pie
+
+        return self._is_pie
+
     def rebase_addr(self, addr, up=False):
-        checksec_status = checksec(get_filepath())
-        pie = checksec_status["PIE"]  # if pie we will have offset instead of abs address.
         corrected_addr = addr
-        if pie:
+        if self.is_pie:
             if up:
                 corrected_addr += self.text_base_addr
             else:
@@ -243,12 +249,20 @@ class GDBClient:
     def deregister_decompiler_context_pane(self, decompiler_name):
         gdb.events.stop.disconnect(self.dec_pane.display_pane_and_title)
 
+    def find_text_segment_base_addr(self, is_remote=False):
+        return find_text_segment_base_addr(is_remote=is_remote)
+
+    @property
+    def is_pie(self):
+        checksec_status = checksec(get_filepath())
+        return checksec_status["PIE"]  # if pie we will have offset instead of abs address.
+
     #
     # Event Handlers
     #
 
     def on_decompiler_connected(self, decompiler_name):
-        self.text_segment_base_addr = find_text_segment_base_addr(is_remote=is_remote_debug())
+        self.text_segment_base_addr = self.find_text_segment_base_addr(is_remote=is_remote_debug())
         self.dec_client.update_symbols()
         self.register_decompiler_context_pane(decompiler_name)
 

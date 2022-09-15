@@ -55,7 +55,7 @@ class SymbolMapper:
             info("If you are on Linux and want native symbol support make sure you have gcc and objcopy.")
             return False
 
-        if not self.text_base_addr:
+        if self.text_base_addr is None:
             err("Base address of the binary has not been discovered yet, please run the binary and try again.")
             return False
 
