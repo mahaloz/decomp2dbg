@@ -1,5 +1,7 @@
 import textwrap
 import argparse
+import contextlib
+import io
 
 import gdb
 
@@ -147,18 +149,21 @@ class GDBDecompilerClient(DecompilerClient):
 #
 
 class DecompilerCommand(gdb.Command):
-    def __init__(self, decompiler):
+    def __init__(self, decompiler, gdb_client):
         super(DecompilerCommand, self).__init__("decompiler", gdb.COMMAND_USER)
         self.decompiler = decompiler
+        self.gdb_client = gdb_client
         self.arg_parser = self._init_arg_parser()
 
     @only_if_gdb_running
     def invoke(self, arg, from_tty):
         raw_args = arg.split()
         try:
-            args = self.arg_parser.parse_args(raw_args)
-        except argparse.ArgumentError as e:
-            pprint(f"Error parsing args: {e}")
+            f = io.StringIO()
+            with contextlib.redirect_stderr(f):
+                args = self.arg_parser.parse_args(raw_args)
+        except Exception as e:
+            err(f"Error parsing args: {e}")
             self.arg_parser.print_help()
             return
 
@@ -202,11 +207,13 @@ class DecompilerCommand(gdb.Command):
         handler(args)
 
     def _handle_connect(self, args):
-        if not args.name:
+        if not args.decompiler_name:
             err("You must provide a decompiler name when using this command!")
             return
 
-        connected = self.decompiler.connect(name=args.name, host=args.host, port=args.port)
+        self.gdb_client.text_segment_base_addr = args.base_addr
+        self.gdb_client.name = args.decompiler_name
+        connected = self.decompiler.connect(name=args.decompiler_name, host=args.host, port=args.port)
         if not connected:
             err("Failed to connect to decompiler!")
             return
@@ -221,13 +228,24 @@ class DecompilerCommand(gdb.Command):
         self.decompiler.disconnect()
         info("Disconnected decompiler!")
 
+    def _handle_info(self, args):
+        info("Decompiler Info:")
+        print(textwrap.dedent(
+            f"""\
+            Name: {self.gdb_client.name}
+            Base Addr: {hex(self.gdb_client.text_segment_base_addr) 
+            if isinstance(self.gdb_client.text_segment_base_addr, int) else self.gdb_client.text_segment_base_addr}
+            """
+        ))
+        pass
 
 class GDBClient:
     def __init__(self):
         self.dec_client = GDBDecompilerClient(self)
-        self.cmd_interface = DecompilerCommand(self.dec_client)
+        self.cmd_interface = DecompilerCommand(self.dec_client, self)
         self.dec_pane = DecompilerPane(self.dec_client)
 
+        self.name = None
         self.text_segment_base_addr = None
 
     def __del__(self):
