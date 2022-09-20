@@ -1,4 +1,5 @@
 import textwrap
+import argparse
 
 import gdb
 
@@ -149,50 +150,63 @@ class DecompilerCommand(gdb.Command):
     def __init__(self, decompiler):
         super(DecompilerCommand, self).__init__("decompiler", gdb.COMMAND_USER)
         self.decompiler = decompiler
+        self.arg_parser = self._init_arg_parser()
 
     @only_if_gdb_running
     def invoke(self, arg, from_tty):
-        args = arg.split(" ")
-        if len(args) < 2:
-            self._handle_help(None)
+        raw_args = arg.split()
+        try:
+            args = self.arg_parser.parse_args(raw_args)
+        except argparse.ArgumentError as e:
+            pprint(f"Error parsing args: {e}")
+            self.arg_parser.print_help()
             return
 
-        cmd = args[0]
-        args = args[1:]
-        self._handle_cmd(cmd, args)
+        self._handle_cmd(args)
 
-    def _handle_cmd(self, cmd, args):
+    @staticmethod
+    def _init_arg_parser():
+        parser = argparse.ArgumentParser(exit_on_error=False)
+        commands = ["connect", "disconnect", "info"]
+        parser.add_argument(
+            'command', type=str, choices=commands, help="""
+            Commands:
+            [connect]: connects a decompiler by name, with optional host, port, and base address.
+            [disconnect]: disconnects a decompiler by name, destroyed decompilation panel.
+            [info]: lists useful info about connected decompilers
+            """
+        )
+        parser.add_argument(
+            'decompiler_name', type=str, default="", help="""
+            The name of the decompiler, which can be anything you like. It's suggested
+            to use sematic and numeric names like: 'ida2' or 'ghidra1'. Optional when doing 
+            the info command.
+            """
+        )
+        parser.add_argument(
+            '--host', type=str, default="localhost"
+        )
+        parser.add_argument(
+            '--port', type=int, default=3662
+        )
+        parser.add_argument(
+            '--base-addr', type=lambda x: int(x,0)
+        )
+
+        return parser
+
+    def _handle_cmd(self, args):
+        cmd = args.command
         handler_str = f"_handle_{cmd}"
-        if hasattr(self, handler_str):
-            handler = getattr(self, handler_str)
-            handler(args)
-        else:
-            self._handler_failed("command does not exist")
+        handler = getattr(self, handler_str)
+        handler(args)
 
     def _handle_connect(self, args):
-        if len(args) < 1:
-            self._handler_failed("not enough args")
+        if not args.name:
+            err("You must provide a decompiler name when using this command!")
             return
 
-        name = args[0]
-        host = "localhost"
-        port = 3662
-
-        if len(args) > 1:
-            try:
-                port_ = int(args[1])
-                port = port_
-            except ValueError:
-                host = args[1]
-
-        if len(args) > 2:
-            try:
-                port_ = int(args[2])
-                port = port_
-            except ValueError:
-                host = args[2]
-
-        connected = self.decompiler.connect(name=name, host=host, port=port)
+        connected = self.decompiler.connect(name=args.name, host=args.host, port=args.port)
         if not connected:
             err("Failed to connect to decompiler!")
             return
@@ -200,36 +214,12 @@ class DecompilerCommand(gdb.Command):
         info("Connected to decompiler!")
 
     def _handle_disconnect(self, args):
+        if not args.name:
+            err("You must provide a decompiler name when using this command!")
+            return
+
         self.decompiler.disconnect()
         info("Disconnected decompiler!")
-
-    def _handle_help(self, args):
-        usage_str = """\
-        Usage: decompiler <command>
-
-        Commands:
-            [] connect <name> (host) (port)
-                Connects the decomp2dbg plugin to the decompiler. After a successful connect, a decompilation pane
-                will be visible that will get updated with global decompiler info on each break-like event.
-
-                * name = name of the decompiler, can be anything
-                * host = host of the decompiler; will be 'localhost' if not defined
-                * port = port of the decompiler; will be 3662 if not defined
-
-            [] disconnect
-                Disconnects the decomp2dbg plugin. Not needed to stop decompiler, but useful.
-
-        Examples:
-            decompiler connect ida
-            decompiler connect binja 192.168.15 3662
-            decompiler disconnect
-
-        """
-        pprint(textwrap.dedent(usage_str))
-
-    def _handler_failed(self, error):
-        pprint(f"[!] Failed to handle decompiler command: {error}.")
-        self._handle_help(None)
 
 
 class GDBClient:
@@ -262,7 +252,8 @@ class GDBClient:
     #
 
     def on_decompiler_connected(self, decompiler_name):
-        self.text_segment_base_addr = self.find_text_segment_base_addr(is_remote=is_remote_debug())
+        if self.text_segment_base_addr is None:
+            self.text_segment_base_addr = self.find_text_segment_base_addr(is_remote=is_remote_debug())
         self.dec_client.update_symbols()
         self.register_decompiler_context_pane(decompiler_name)
 
