@@ -60,6 +60,9 @@ class PwndbgDecompilerPane(DecompilerPane):
         except Exception as e:
             pane_title = f"decompiler: {e}"
 
+        if pane_title is None:
+            return ""
+
         banner = [pwndbg.ui.banner(pane_title, target=target, width=width)] if with_banner else []
         if failed:
             return banner + ["decompilation error"]

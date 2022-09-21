@@ -31,13 +31,15 @@ class DecompilerPane:
         try:
             resp = self.decompiler.decompile(rebased_pc)
         except Exception as e:
-            warn(f"FAILED on {e}")
+            warn(f"Decompiler failed to get a response from decompiler on "
+                 f"{hex(rebased_pc) if isinstance(rebased_pc,int) else rebased_pc} with: {e}")
             return False
 
         # set the decompilation for next use in display_pane
         decompilation = resp['decompilation']
         if not decompilation:
-            warn("NO DECOMP PRESENT")
+            warn("Decompiler server sent back a response without decompilation lines for "
+                 f"{hex(rebased_pc) if isinstance(rebased_pc,int) else rebased_pc}")
             return False
         self.decomp_lines = decompilation
         self.curr_line = resp["curr_line"]
