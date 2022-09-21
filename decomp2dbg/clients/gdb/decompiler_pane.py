@@ -16,6 +16,12 @@ class DecompilerPane:
         self.stop_global_import = False
 
     def update_event(self, pc_):
+        if (self.decompiler.gdb_client.base_addr_end is not None) and \
+                (self.decompiler.gdb_client.base_addr_start is not None):
+            if pc_ > self.decompiler.gdb_client.base_addr_end or pc_ < self.decompiler.gdb_client.base_addr_start:
+                return False
+
+        
         rebased_pc = self.decompiler.rebase_addr(pc_)
 
         # update all known function names
@@ -93,7 +99,7 @@ class DecompilerPane:
         if self.ready_to_display:
             title = "decompiler:{:s}:{:s}:{:d}".format(self.decompiler.name, self.curr_func, self.curr_line+1)
         else:
-            title = "decompiler:{:s}:error".format(self.decompiler.name)
+            title = None
 
         return title
 

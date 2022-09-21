@@ -153,10 +153,10 @@ a given binary target.
 ### Shared Libraries
 When you want the decompilation (and symbols) displayed for a section of memory which is not the main binary, like when debugging a shared library, you need to do some extra steps. Currently, d2d only supports 1 decompiler connected at a time, which means if you currently have any decompilers connected that is not the library, you need to disconnect it.
 
-After following the normal setup to have your decompiler running the d2d server for your shared library, you need to manually set the base address this library will be set at:
+After following the normal setup to have your decompiler running the d2d server for your shared library, you need to manually set the base address for this library and its end address:
 
 ```
-decompiler connect ida --base-addr 0x00007ffff7452000
+decompiler connect ida --base-addr-start 0x00007ffff7452000 --base-addr-end 0x00007ffff766d000
 ```
 
 To find the base address that your library is loaded at in memory, its recommend you use something like the `vmmap` command from GEF to look for the libraries name in the memory space. After connecting with this manually set address, symbols show work like normal d2d. Decompilation will only be printed on the screen when you are in the range of this address space. 

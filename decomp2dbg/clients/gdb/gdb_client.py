@@ -26,7 +26,7 @@ class GDBDecompilerClient(DecompilerClient):
     @property
     @lru_cache()
     def text_base_addr(self):
-        return self.gdb_client.text_segment_base_addr
+        return self.gdb_client.base_addr_start
 
     @property
     def is_pie(self):
@@ -197,7 +197,10 @@ class DecompilerCommand(gdb.Command):
             '--port', type=int, default=3662
         )
         parser.add_argument(
-            '--base-addr', type=lambda x: int(x,0)
+            '--base-addr-start', type=lambda x: int(x,0)
+        )
+        parser.add_argument(
+            '--base-addr-end', type=lambda x: int(x,0)
         )
 
         return parser
@@ -213,7 +216,17 @@ class DecompilerCommand(gdb.Command):
             err("You must provide a decompiler name when using this command!")
             return
 
-        self.gdb_client.text_segment_base_addr = args.base_addr
+        if (args.base_addr_start and not args.base_addr_end) or (args.base_addr_end and not args.base_addr_start):
+            err("You must use --base-addr-start and --base-addr-end together")
+            return
+        elif args.base_addr_start and args.base_addr_end:
+            if args.base_addr_start > args.base_addr_end:
+                err("Your provided base-addr-start must be smaller than your base-addr-end")
+                return
+
+            self.gdb_client.base_addr_start = args.base_addr_start
+            self.gdb_client.base_addr_end = args.base_addr_end
+
         self.gdb_client.name = args.decompiler_name
         connected = self.decompiler.connect(name=args.decompiler_name, host=args.host, port=args.port)
         if not connected:
@@ -223,7 +236,7 @@ class DecompilerCommand(gdb.Command):
         info("Connected to decompiler!")
 
     def _handle_disconnect(self, args):
-        if not args.name:
+        if not args.decompiler_name:
             err("You must provide a decompiler name when using this command!")
             return
 
@@ -235,8 +248,10 @@ class DecompilerCommand(gdb.Command):
         print(textwrap.dedent(
             f"""\
             Name: {self.gdb_client.name}
-            Base Addr: {hex(self.gdb_client.text_segment_base_addr) 
-            if isinstance(self.gdb_client.text_segment_base_addr, int) else self.gdb_client.text_segment_base_addr}
+            Base Addr Start: {hex(self.gdb_client.base_addr_start) 
+            if isinstance(self.gdb_client.base_addr_start, int) else self.gdb_client.base_addr_start}
+            Base Addr End: {hex(self.gdb_client.base_addr_end)
+            if isinstance(self.gdb_client.base_addr_end, int) else self.gdb_client.base_addr_end}
             """
         ))
 
@@ -248,7 +263,8 @@ class GDBClient:
         self.dec_pane = DecompilerPane(self.dec_client)
 
         self.name = None
-        self.text_segment_base_addr = None
+        self.base_addr_start = None
+        self.base_addr_end = None
 
     def __del__(self):
         del self.cmd_interface
@@ -272,10 +288,13 @@ class GDBClient:
     #
 
     def on_decompiler_connected(self, decompiler_name):
-        if self.text_segment_base_addr is None:
-            self.text_segment_base_addr = self.find_text_segment_base_addr(is_remote=is_remote_debug())
+        if self.base_addr_start is None:
+            self.base_addr_start = self.find_text_segment_base_addr(is_remote=is_remote_debug())
         self.dec_client.update_symbols()
         self.register_decompiler_context_pane(decompiler_name)
 
     def on_decompiler_disconnected(self, decompiler_name):
         self.deregister_decompiler_context_pane(decompiler_name)
+        self.name = None
+        self.base_addr_start = None
+        self.base_addr_end = None
