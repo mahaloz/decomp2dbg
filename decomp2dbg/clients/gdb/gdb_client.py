@@ -1,4 +1,7 @@
 import textwrap
+import argparse
+import contextlib
+import io
 
 import gdb
 
@@ -23,7 +26,7 @@ class GDBDecompilerClient(DecompilerClient):
     @property
     @lru_cache()
     def text_base_addr(self):
-        return self.gdb_client.text_segment_base_addr
+        return self.gdb_client.base_addr_start
 
     @property
     def is_pie(self):
@@ -146,53 +149,86 @@ class GDBDecompilerClient(DecompilerClient):
 #
 
 class DecompilerCommand(gdb.Command):
-    def __init__(self, decompiler):
+    def __init__(self, decompiler, gdb_client):
         super(DecompilerCommand, self).__init__("decompiler", gdb.COMMAND_USER)
         self.decompiler = decompiler
+        self.gdb_client = gdb_client
+        self.arg_parser = self._init_arg_parser()
 
     @only_if_gdb_running
     def invoke(self, arg, from_tty):
-        args = arg.split(" ")
-        if len(args) < 2:
-            self._handle_help(None)
+        raw_args = arg.split()
+        try:
+            f = io.StringIO()
+            with contextlib.redirect_stderr(f):
+                args = self.arg_parser.parse_args(raw_args)
+        except (RuntimeError, RuntimeWarning):
+            return
+        except Exception as e:
+            err(f"Error parsing args: {e}")
+            self.arg_parser.print_help()
             return
 
-        cmd = args[0]
-        args = args[1:]
-        self._handle_cmd(cmd, args)
+        self._handle_cmd(args)
 
-    def _handle_cmd(self, cmd, args):
+    @staticmethod
+    def _init_arg_parser():
+        parser = argparse.ArgumentParser(exit_on_error=False)
+        commands = ["connect", "disconnect", "info"]
+        parser.add_argument(
+            'command', type=str, choices=commands, help="""
+            Commands:
+            [connect]: connects a decompiler by name, with optional host, port, and base address.
+            [disconnect]: disconnects a decompiler by name, destroyed decompilation panel.
+            [info]: lists useful info about connected decompilers
+            """
+        )
+        parser.add_argument(
+            'decompiler_name', type=str, nargs="?", help="""
+            The name of the decompiler, which can be anything you like. It's suggested
+            to use sematic and numeric names like: 'ida2' or 'ghidra1'. Optional when doing 
+            the info command.
+            """
+        )
+        parser.add_argument(
+            '--host', type=str, default="localhost"
+        )
+        parser.add_argument(
+            '--port', type=int, default=3662
+        )
+        parser.add_argument(
+            '--base-addr-start', type=lambda x: int(x,0)
+        )
+        parser.add_argument(
+            '--base-addr-end', type=lambda x: int(x,0)
+        )
+
+        return parser
+
+    def _handle_cmd(self, args):
+        cmd = args.command
         handler_str = f"_handle_{cmd}"
-        if hasattr(self, handler_str):
-            handler = getattr(self, handler_str)
-            handler(args)
-        else:
-            self._handler_failed("command does not exist")
+        handler = getattr(self, handler_str)
+        handler(args)
 
     def _handle_connect(self, args):
-        if len(args) < 1:
-            self._handler_failed("not enough args")
+        if not args.decompiler_name:
+            err("You must provide a decompiler name when using this command!")
             return
 
-        name = args[0]
-        host = "localhost"
-        port = 3662
+        if (args.base_addr_start and not args.base_addr_end) or (args.base_addr_end and not args.base_addr_start):
+            err("You must use --base-addr-start and --base-addr-end together")
+            return
+        elif args.base_addr_start and args.base_addr_end:
+            if args.base_addr_start > args.base_addr_end:
+                err("Your provided base-addr-start must be smaller than your base-addr-end")
+                return
 
-        if len(args) > 1:
-            try:
-                port_ = int(args[1])
-                port = port_
-            except ValueError:
-                host = args[1]
+            self.gdb_client.base_addr_start = args.base_addr_start
+            self.gdb_client.base_addr_end = args.base_addr_end
 
-        if len(args) > 2:
-            try:
-                port_ = int(args[2])
-                port = port_
-            except ValueError:
-                host = args[2]
-
-        connected = self.decompiler.connect(name=name, host=host, port=port)
+        self.gdb_client.name = args.decompiler_name
+        connected = self.decompiler.connect(name=args.decompiler_name, host=args.host, port=args.port)
         if not connected:
             err("Failed to connect to decompiler!")
             return
@@ -200,45 +236,35 @@ class DecompilerCommand(gdb.Command):
         info("Connected to decompiler!")
 
     def _handle_disconnect(self, args):
+        if not args.decompiler_name:
+            err("You must provide a decompiler name when using this command!")
+            return
+
         self.decompiler.disconnect()
         info("Disconnected decompiler!")
 
-    def _handle_help(self, args):
-        usage_str = """\
-        Usage: decompiler <command>
-
-        Commands:
-            [] connect <name> (host) (port)
-                Connects the decomp2dbg plugin to the decompiler. After a successful connect, a decompilation pane
-                will be visible that will get updated with global decompiler info on each break-like event.
-
-                * name = name of the decompiler, can be anything
-                * host = host of the decompiler; will be 'localhost' if not defined
-                * port = port of the decompiler; will be 3662 if not defined
-
-            [] disconnect
-                Disconnects the decomp2dbg plugin. Not needed to stop decompiler, but useful.
-
-        Examples:
-            decompiler connect ida
-            decompiler connect binja 192.168.15 3662
-            decompiler disconnect
-
-        """
-        pprint(textwrap.dedent(usage_str))
-
-    def _handler_failed(self, error):
-        pprint(f"[!] Failed to handle decompiler command: {error}.")
-        self._handle_help(None)
+    def _handle_info(self, args):
+        info("Decompiler Info:")
+        print(textwrap.dedent(
+            f"""\
+            Name: {self.gdb_client.name}
+            Base Addr Start: {hex(self.gdb_client.base_addr_start) 
+            if isinstance(self.gdb_client.base_addr_start, int) else self.gdb_client.base_addr_start}
+            Base Addr End: {hex(self.gdb_client.base_addr_end)
+            if isinstance(self.gdb_client.base_addr_end, int) else self.gdb_client.base_addr_end}
+            """
+        ))
 
 
 class GDBClient:
     def __init__(self):
         self.dec_client = GDBDecompilerClient(self)
-        self.cmd_interface = DecompilerCommand(self.dec_client)
+        self.cmd_interface = DecompilerCommand(self.dec_client, self)
         self.dec_pane = DecompilerPane(self.dec_client)
 
-        self.text_segment_base_addr = None
+        self.name = None
+        self.base_addr_start = None
+        self.base_addr_end = None
 
     def __del__(self):
         del self.cmd_interface
@@ -262,9 +288,13 @@ class GDBClient:
     #
 
     def on_decompiler_connected(self, decompiler_name):
-        self.text_segment_base_addr = self.find_text_segment_base_addr(is_remote=is_remote_debug())
+        if self.base_addr_start is None:
+            self.base_addr_start = self.find_text_segment_base_addr(is_remote=is_remote_debug())
         self.dec_client.update_symbols()
         self.register_decompiler_context_pane(decompiler_name)
 
     def on_decompiler_disconnected(self, decompiler_name):
         self.deregister_decompiler_context_pane(decompiler_name)
+        self.name = None
+        self.base_addr_start = None
+        self.base_addr_end = None

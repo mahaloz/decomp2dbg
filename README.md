@@ -60,14 +60,20 @@ decompiler connect <decompiler_name>
 If you are running the decompiler on a VM or different machine, you can optionally provide the host and 
 port to connect to. Here is an example:
 ```bash
-decompiler connect ida 10.211.55.2 3662
+decompiler connect ida --host 10.211.55.2 --port 3662
 ```
 
-First connection can take up to 30 seconds to register depending on the amount of globals in the binary.
+You can find out how to use all the commands by running the decompiler command with the `--help` flag.
+
+The first connection can take up to 30 seconds to register depending on the amount of globals in the binary.
 If all is well, you should see:
 ```bash
 [+] Connected to decompiler!
 ```
+
+If you are using decomp2dbg for a library, i.e. the main binary your debugger attached to is not the binary
+you want source for, then you should take a look at the [Advanced Usage - Shared Libs](#shared-libraries) section
+of the readme.
 
 ### Decompilation View
 On each breakpoint event, you will now see decompilation printed, and the line you are on associated with
@@ -141,3 +147,16 @@ a given binary target.
 - IDA Pro
 - Binary Ninja
 - [angr-decompiler](https://github.com/angr/angr-management)
+
+
+## Advanced Usage
+### Shared Libraries
+When you want the decompilation (and symbols) displayed for a section of memory which is not the main binary, like when debugging a shared library, you need to do some extra steps. Currently, d2d only supports 1 decompiler connected at a time, which means if you currently have any decompilers connected that is not the library, you need to disconnect it.
+
+After following the normal setup to have your decompiler running the d2d server for your shared library, you need to manually set the base address for this library and its end address:
+
+```
+decompiler connect ida --base-addr-start 0x00007ffff7452000 --base-addr-end 0x00007ffff766d000
+```
+
+To find the base address that your library is loaded at in memory, its recommend you use something like the `vmmap` command from GEF to look for the libraries name in the memory space. After connecting with this manually set address, symbols show work like normal d2d. Decompilation will only be printed on the screen when you are in the range of this address space. 
