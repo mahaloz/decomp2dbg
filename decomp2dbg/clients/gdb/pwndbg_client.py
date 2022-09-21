@@ -61,7 +61,7 @@ class PwndbgDecompilerPane(DecompilerPane):
             pane_title = f"decompiler: {e}"
 
         if pane_title is None:
-            return ""
+            return []
 
         banner = [pwndbg.ui.banner(pane_title, target=target, width=width)] if with_banner else []
         if failed:
