@@ -162,6 +162,8 @@ class DecompilerCommand(gdb.Command):
             f = io.StringIO()
             with contextlib.redirect_stderr(f):
                 args = self.arg_parser.parse_args(raw_args)
+        except (RuntimeError, RuntimeWarning):
+            return
         except Exception as e:
             err(f"Error parsing args: {e}")
             self.arg_parser.print_help()
@@ -182,7 +184,7 @@ class DecompilerCommand(gdb.Command):
             """
         )
         parser.add_argument(
-            'decompiler_name', type=str, default="", help="""
+            'decompiler_name', type=str, nargs="?", help="""
             The name of the decompiler, which can be anything you like. It's suggested
             to use sematic and numeric names like: 'ida2' or 'ghidra1'. Optional when doing 
             the info command.
@@ -237,7 +239,7 @@ class DecompilerCommand(gdb.Command):
             if isinstance(self.gdb_client.text_segment_base_addr, int) else self.gdb_client.text_segment_base_addr}
             """
         ))
-        pass
+
 
 class GDBClient:
     def __init__(self):
