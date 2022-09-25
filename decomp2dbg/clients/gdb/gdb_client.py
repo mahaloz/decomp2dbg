@@ -37,7 +37,7 @@ class GDBDecompilerClient(DecompilerClient):
 
     def rebase_addr(self, addr, up=False):
         corrected_addr = addr
-        if self.is_pie:
+        if self.is_pie or self.gdb_client.base_manually_set:
             if up:
                 corrected_addr += self.text_base_addr
             else:
@@ -226,6 +226,7 @@ class DecompilerCommand(gdb.Command):
 
             self.gdb_client.base_addr_start = args.base_addr_start
             self.gdb_client.base_addr_end = args.base_addr_end
+            self.gdb_client.base_manually_set = True
 
         self.gdb_client.name = args.decompiler_name
         connected = self.decompiler.connect(name=args.decompiler_name, host=args.host, port=args.port)
@@ -263,6 +264,7 @@ class GDBClient:
         self.dec_pane = DecompilerPane(self.dec_client)
 
         self.name = None
+        self.base_manually_set = False
         self.base_addr_start = None
         self.base_addr_end = None
 
