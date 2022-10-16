@@ -42,7 +42,11 @@ class DecompilerPane:
                  f"{hex(rebased_pc) if isinstance(rebased_pc,int) else rebased_pc}")
             return False
         self.decomp_lines = decompilation
+        last_line = self.curr_line
         self.curr_line = resp["curr_line"]
+        if self.curr_line == -1:
+            self.curr_line = last_line if last_line is not None else 0
+
         self.curr_func = resp["func_name"]
 
         # update the data known in the function (stack variables)

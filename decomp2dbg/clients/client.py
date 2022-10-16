@@ -36,12 +36,23 @@ class DecompilerClient:
         port = port or self.port
 
         # create a decompiler server connection and test it
+        retry = True
         try:
             self.server = xmlrpc.client.ServerProxy("http://{:s}:{:d}".format(host, port))
             self.server.ping()
-        except (ConnectionRefusedError, AttributeError) as e:
-            self.server = None
-            return False
+            retry = False
+        except:
+            pass
+
+        # the connection could fail because its a Ghidra connection on endpoint d2d
+        if retry:
+            try:
+                self.server = xmlrpc.client.ServerProxy("http://{:s}:{:d}".format(host, port)).d2d
+                self.server.ping()
+            except (ConnectionRefusedError, AttributeError) as e:
+                self.server = None
+                # if we fail here, we fail overall
+                return False
 
         self.decompiler_connected()
         return True
