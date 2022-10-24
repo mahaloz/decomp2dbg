@@ -69,11 +69,12 @@ class GDBDecompilerClient(DecompilerClient):
             sym_name_set.add(func["name"])
 
         for addr, global_var in global_vars.items():
+            clean_name = re.sub(r"[^a-zA-Z0-9_]", "_", global_var['name'])
             # never re-add globals with the same name as a func
-            if global_var["name"] in sym_name_set:
+            if clean_name in sym_name_set:
                 continue
-
-            syms_to_add.append((global_var["name"], int(addr, 0), "object", global_var_size))
+            
+            syms_to_add.append((clean_name, int(addr, 0), "object", global_var_size))
 
         try:
             self.symbol_mapper.add_native_symbols(syms_to_add)
