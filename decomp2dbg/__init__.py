@@ -1,2 +1,7 @@
-from .clients.client import DecompilerClient
-from .clients import GDBClient, GDBDecompilerClient
+__version__ = "3.0.0"
+
+try:
+    from .clients.client import DecompilerClient
+    from .clients import GDBClient, GDBDecompilerClient
+except ImportError:
+    pass

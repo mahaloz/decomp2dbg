@@ -3,3 +3,5 @@
 build*
 *.pyc
 *.gdb_history
+decomp2dbg/decompilers
+decomp2dbg/d2d.py
