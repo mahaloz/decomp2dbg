@@ -52,10 +52,10 @@ class Decomp2dbgInstaller(Installer):
         if ida_plugin_path is None:
             return
 
-        src_d2d_ida_pkg = self.plugins_path.joinpath("ida_binsync").joinpath("ida_binsync")
-        src_d2d_ida_py = self.plugins_path.joinpath("ida_binsync").joinpath("ida_binsync.py")
-        dst_d2d_ida_pkg = ida_plugin_path.joinpath("ida_binsync")
-        dst_d2d_ida_py = ida_plugin_path.joinpath("ida_binsync.py")
+        src_d2d_ida_pkg = self.plugins_path.joinpath("d2d_ida").joinpath("d2d_ida")
+        src_d2d_ida_py = self.plugins_path.joinpath("d2d_ida").joinpath("d2d_ida.py")
+        dst_d2d_ida_pkg = ida_plugin_path.joinpath("d2d_ida")
+        dst_d2d_ida_py = ida_plugin_path.joinpath("d2d_ida.py")
         self.link_or_copy(src_d2d_ida_pkg, dst_d2d_ida_pkg, is_dir=True)
         self.link_or_copy(src_d2d_ida_py, dst_d2d_ida_py)
 
@@ -64,8 +64,8 @@ class Decomp2dbgInstaller(Installer):
         if angr_plugin_path is None:
             return None
 
-        src_d2d_angr_pkg = self.plugins_path.joinpath("angr_binsync")
-        dst_d2d_angr_pkg = angr_plugin_path.joinpath("angr_binsync")
+        src_d2d_angr_pkg = self.plugins_path.joinpath("d2d_angr")
+        dst_d2d_angr_pkg = angr_plugin_path.joinpath("d2d_angr")
         self.link_or_copy(src_d2d_angr_pkg, dst_d2d_angr_pkg, is_dir=True)
 
     def install_ghidra(self, path=None):
