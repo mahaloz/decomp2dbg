@@ -12,24 +12,31 @@ Currently supported in GDB with any additional plugin like [GEF](https://github.
 
 [![Discord](https://img.shields.io/discord/900841083532087347?label=Discord&style=plastic)](https://discord.gg/wZSCeXnEvR)
 
-## Install (script/fast)
-The easiest and fastest way to install is using the `install.sh` script!
+## Install
+Install through pip, then use the built-in installer for decompilers:
 ```bash
-./install.sh --ida /path/to/ida/plugins
+pip3 install decomp2dbg && decomp2dbg --install 
 ```
 
-Make sure to define the correct option for your decompiler of choice. Use `--help` for more info!
-Note: You may need to allow inbound connections on port 3662, or the port you use, for decomp2dbg to connect
-to the decompiler. 
+This will open a prompt where you be asked to input the path to your decompiler of choice. For Ghidra installs,
+you must follow the extra steps to enable extensions [here]().
 
-> Note: If you are installing decomp2dbg with GEF or pwndbg it's important that in your ~/.gdbinit the
-> decomp2dbg.py file is sourced after GEF or pwndbg.
+**Note**: You may need to allow inbound connections on port 3662, or the port you use, for decomp2dbg to connect
+to the decompiler. If you are installing decomp2dbg with GEF or pwndbg it's important that in your `~/.gdbinit` the
+`d2d.py` file is sourced after GEF or pwndbg.
 
-## Install (manual)
-If you can't use the script (non-WSL Windows install for the decompiler), follow the steps below: 
+## Manual Install 
+
+Skip this if you were able to use the above install with no errors.
+If you can't use the above built-in script (non-WSL Windows install for the decompiler), follow the steps below:
 
 If you only need the decompiler side of things, copy the associated decompiler plugin to the
 decompiler's plugin folder. Here is how you do it in IDA:
+
+First, clone the repo:
+```
+git clone https://github.com/mahaloz/decomp2dbg.git
+```
 
 Copy all the files in `./decompilers/d2g_ida/` into your ida `plugins` folder:
 ```bash
@@ -39,7 +46,7 @@ cp -r ./decompilers/d2d_ida/* /path/to/ida/plugins/
 If you also need to install the gdb side of things, use the line below: 
 ```bash
 pip3 install . && \
-cp d2d.py ~/.d2d.py && echo "source ~/.decomp2dbg.py" >> ~/.gdbinit
+cp d2d.py ~/.d2d.py && echo "source ~/.d2d.py" >> ~/.gdbinit
 ```
 
 ## Usage 
