@@ -39,7 +39,7 @@ cp -r ./decompilers/d2d_ida/* /path/to/ida/plugins/
 If you also need to install the gdb side of things, use the line below: 
 ```bash
 pip3 install . && \
-cp decomp2dbg.py ~/.decomp2dbg.py && echo "source ~/.decomp2dbg.py" >> ~/.gdbinit
+cp d2d.py ~/.d2d.py && echo "source ~/.decomp2dbg.py" >> ~/.gdbinit
 ```
 
 ## Usage 
