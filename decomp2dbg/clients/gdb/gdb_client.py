@@ -73,7 +73,7 @@ class GDBDecompilerClient(DecompilerClient):
             # never re-add globals with the same name as a func
             if clean_name in sym_name_set:
                 continue
-            
+
             syms_to_add.append((clean_name, int(addr, 0), "object", global_var_size))
 
         try:
