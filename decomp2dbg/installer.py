@@ -6,6 +6,7 @@ from pathlib import Path
 
 from binsync.installer import Installer
 
+
 class Decomp2dbgInstaller(Installer):
     def __init__(self):
         super(Decomp2dbgInstaller, self).__init__(targets=Installer.DECOMPILERS + ('gdb',))
@@ -25,16 +26,11 @@ class Decomp2dbgInstaller(Installer):
         Please input decompiler/debugger install paths as prompted. Enter nothing to either use
         the default install path if one exist, or to skip.
         """))
-    
-    def install_gdb(self, path=None):
-        default_gdb_path = Path("~/").joinpath(".gdbinit").expanduser()
-        default_str = f" [default = {default_gdb_path}]"
-        path = self.ask_path(f"gdbinit path{default_str}:\n") if path is None else path
-        if not path:
-            if not default_gdb_path:
-                return None
 
-            path = default_gdb_path
+    def install_gdb(self, path=None):
+        path = super().install_gdb(path=None)
+        if path is None:
+            return None
 
         d2d_script_path_pkg = self.plugins_path.parent.joinpath("d2d.py")
         with open(path, "r") as fp:
@@ -42,10 +38,13 @@ class Decomp2dbgInstaller(Installer):
             
         write_str = f"source {str(d2d_script_path_pkg.absolute())}"
         if write_str in init_contents:
+            self.warn("gdbinit already contains d2d source...")
             return None
 
         with open(path, "a") as fp:
             fp.write(f"\n{write_str}\n")
+
+        return path
 
     def install_ida(self, path=None):
         ida_plugin_path = super().install_ida(path=path)
@@ -58,6 +57,7 @@ class Decomp2dbgInstaller(Installer):
         dst_d2d_ida_py = ida_plugin_path.joinpath("d2d_ida.py")
         self.link_or_copy(src_d2d_ida_pkg, dst_d2d_ida_pkg, is_dir=True)
         self.link_or_copy(src_d2d_ida_py, dst_d2d_ida_py)
+        return dst_d2d_ida_pkg
 
     def install_angr(self, path=None):
         angr_plugin_path = super().install_angr(path=path)
@@ -67,6 +67,7 @@ class Decomp2dbgInstaller(Installer):
         src_d2d_angr_pkg = self.plugins_path.joinpath("d2d_angr")
         dst_d2d_angr_pkg = angr_plugin_path.joinpath("d2d_angr")
         self.link_or_copy(src_d2d_angr_pkg, dst_d2d_angr_pkg, is_dir=True)
+        return dst_d2d_angr_pkg
 
     def install_ghidra(self, path=None):
         ghidra_path = super().install_ghidra(path=path)
@@ -76,6 +77,7 @@ class Decomp2dbgInstaller(Installer):
         download_url = "https://github.com/mahaloz/decomp2dbg/releases/latest/download/d2d-ghidra-plugin.zip"
         dst_path = ghidra_path.joinpath("d2d-ghidra-plugin.zip")
         urlretrieve(download_url, dst_path)
+        return dst_path
 
     def install_binja(self, path=None):
         binja_plugin_path = super().install_binja(path=path)
@@ -85,3 +87,4 @@ class Decomp2dbgInstaller(Installer):
         src_path = self.plugins_path.joinpath("d2d_binja")
         dst_path = binja_plugin_path.joinpath("d2d_binja")
         self.link_or_copy(src_path, dst_path, is_dir=True)
+        return dst_path
