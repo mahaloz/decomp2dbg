@@ -19,7 +19,7 @@ pip3 install decomp2dbg && decomp2dbg --install
 ```
 
 This will open a prompt where you be asked to input the path to your decompiler of choice. For Ghidra installs,
-you must follow the extra steps to enable extensions [here]().
+you must follow the extra steps to enable extensions [here](https://github.com/mahaloz/d2d-ghidra-plugin).
 
 **Note**: You may need to allow inbound connections on port 3662, or the port you use, for decomp2dbg to connect
 to the decompiler. If you are installing decomp2dbg with GEF or pwndbg it's important that in your `~/.gdbinit` the
