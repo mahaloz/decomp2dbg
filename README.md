@@ -1,16 +1,31 @@
 # decomp2dbg
-A plugin to introduce a generic API for decompiler-to-debugger symbol syncing and decompilation
-printing. In effect, a simple way to debug a black-box binary as if you had pseudo-source symbols.
-Currently supported in GDB with any additional plugin like [GEF](https://github.com/hugsy/gef) or 
-[pwndbg](https://github.com/pwndbg/pwndbg).
+
+Reverse engineering often involves both static (decompiler) and dynamic (debugger) analysis, yet we often
+use these analyses without sharing knowledge between the two. In the case of reversing static binaries, 
+context switching between debugger assembly and the symbols you have reversed in decompilation can be inefficient.
+
+decomp2dbg aims to shorten the gap of context switching between decompiler and debugger by introducing a generic
+API for decompiler-to-debugger symbol syncing. In effect, giving the reverser the power of their debugger with
+the symbols and decompilation lines they recover in their decompiler. 
 
 ![decomp2dbg](./assets/decomp2dbg.png)
 
-[IDA Demo w/ GEF](https://asciinema.org/a/442740)
-
-[Binja Demo w/ GEF](https://t.co/M2IZd0fmi3)
+For active help, join the BinSync Discord below, where we answer decomp2dbg questions:
 
 [![Discord](https://img.shields.io/discord/900841083532087347?label=Discord&style=plastic)](https://discord.gg/wZSCeXnEvR)
+
+## Supported Platforms
+### Decompilers
+- IDA Pro (>= 7.0): [Demo w/ GEF](https://asciinema.org/a/442740)
+- Binary Ninja (>= 2.4): [Demo w/ GEF](https://t.co/M2IZd0fmi3)
+- Ghidra (>= 10.1): [Demo w/ GEF](https://youtu.be/MK7N7uQTUNY)
+- [angr-management](https://github.com/angr/angr-management) (>= 9.0)
+
+### Debuggers
+- gdb (works best with [GEF](https://github.com/hugsy/gef))
+  - GEF
+  - pwndbg
+  - vanilla
 
 ## Install
 Install through pip, then use the built-in installer for decompilers:
@@ -120,43 +135,6 @@ p $a1
 Note: `$v4` in this case will only be mapped for as long as you are in the same function. Once you leave the function
 it may be unmapped or remapped to another value.
 
-## Abstract
-The reverse engineering process often involves both static (decompilers) and dynamic (debuggers) analysis to
-achieve understanding of a binary target. Although this process is used often, the cost to context-switch between
-dynamic and static analysis is high. Attempts to bridge this gap often fail to incorporate the live-updates of dynamic
-analysis while preserving the structured types and names of static analysis. 
-
-Decompilers and debuggers often [share many things in common](https://github.com/angr/binsync). During the reversing process, engineers produce reverse
-engineering artifacts (REAs). These REAs are often diffs of the original data found in static analysis. The
-most common REAs are:
-- stack variables
-- global variables
-- structs
-- enums
-- function headers
-- comments
-
-Utilizing REAs, decomp2dbg aims to shorten the gap between using static and dynamic analysis to understand
-a given binary target. 
-
-## Features
-- [X] Auto-updating decompilation context view
-- [X] Auto-syncing function names
-- [X] Breakable/Inspectable symbols
-- [X] Auto-syncing stack variable names
-- [ ] Auto-syncing structs
-
-## Supported Platforms
-### Debuggers
-- **GDB**
-  - Any plugin like **pwndbg** and **gef**.
-### Decompilers
-- IDA Pro
-- Binary Ninja
-- Ghidra
-- [angr-decompiler](https://github.com/angr/angr-management)
-
-
 ## Advanced Usage
 ### Shared Libraries
 When you want the decompilation (and symbols) displayed for a section of memory which is not the main binary, like when debugging a shared library, you need to do some extra steps. Currently, d2d only supports 1 decompiler connected at a time, which means if you currently have any decompilers connected that is not the library, you need to disconnect it.
@@ -168,3 +146,14 @@ decompiler connect ida --base-addr-start 0x00007ffff7452000 --base-addr-end 0x00
 ```
 
 To find the base address that your library is loaded at in memory, its recommend you use something like the `vmmap` command from GEF to look for the libraries name in the memory space. After connecting with this manually set address, symbols show work like normal d2d. Decompilation will only be printed on the screen when you are in the range of this address space. 
+
+## Features
+- [X] Auto-updating decompilation context view
+- [X] Auto-syncing function names
+- [X] Breakable/Inspectable symbols
+- [X] Auto-syncing stack variable names
+- [ ] Auto-syncing structs
+- [ ] Online DWARF Creation
+- [ ] Function Type Syncing
+- [ ] lldb support
+- [ ] windbg support
