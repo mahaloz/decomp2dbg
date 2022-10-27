@@ -77,7 +77,7 @@ class PwndbgClient(GDBClient):
 
     def register_decompiler_context_pane(self, decompiler_name):
         pwndbg.commands.context.context_sections["g"] = self.dec_pane.context_gdecompiler
-        pwndbg.commands.config_context_sections = pwndbg.config.Parameter(
+        pwndbg.commands.config_context_sections = pwndbg.lib.config.Parameter(
             f'context-sections',
             f'regs disasm code gdecompiler stack backtrace expressions',
             f'which context sections are displayed (controls order)'
@@ -85,7 +85,7 @@ class PwndbgClient(GDBClient):
 
     def deregister_decompiler_context_pane(self, decompiler_name):
         del pwndbg.commands.context.context_sections["g"]
-        pwndbg.commands.config_context_sections = pwndbg.config.Parameter(
+        pwndbg.commands.config_context_sections = pwndbg.lib.config.Parameter(
             f'context-sections',
             f'regs disasm code ghidra stack backtrace expressions',
             f'which context sections are displayed (controls order)'
