@@ -53,7 +53,7 @@ First, clone the repo:
 git clone https://github.com/mahaloz/decomp2dbg.git
 ```
 
-Copy all the files in `./decompilers/d2g_ida/` into your ida `plugins` folder:
+Copy all the files in `./decompilers/d2d_ida/` into your ida `plugins` folder:
 ```bash
 cp -r ./decompilers/d2d_ida/* /path/to/ida/plugins/
 ```
