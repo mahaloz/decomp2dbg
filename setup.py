@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 import sys
 from distutils.util import get_platform
+from distutils.command.build import build as st_build
 
 from setuptools import setup
 from setuptools.command.develop import develop as st_develop
@@ -37,6 +38,10 @@ def _copy_decomp_plugins():
     shutil.copytree("decompilers", "decomp2dbg/decompilers")
     shutil.copy("d2d.py", "decomp2dbg/d2d.py")
 
+class build(st_build):
+    def run(self, *args):
+        self.execute(_copy_decomp_plugins, (), msg="Copying binsync plugins")
+        super().run(*args)
 
 class develop(st_develop):
     def run(self, *args):
@@ -45,6 +50,7 @@ class develop(st_develop):
 
 
 cmdclass = {
+    "build": build,
     "develop": develop,
 }
 
