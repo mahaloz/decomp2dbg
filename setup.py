@@ -35,8 +35,11 @@ def _copy_decomp_plugins():
         pass
 
     # copy if symlinking is not available on target system
-    shutil.copytree("decompilers", "decomp2dbg/decompilers")
-    shutil.copy("d2d.py", "decomp2dbg/d2d.py")
+    try:
+        shutil.copytree("decompilers", "decomp2dbg/decompilers")
+        shutil.copy("d2d.py", "decomp2dbg/d2d.py")
+    except:
+        pass
 
 class build(st_build):
     def run(self, *args):
