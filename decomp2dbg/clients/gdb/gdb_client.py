@@ -174,7 +174,7 @@ class DecompilerCommand(gdb.Command):
 
     @staticmethod
     def _init_arg_parser():
-        parser = argparse.ArgumentParser(exit_on_error=False)
+        parser = argparse.ArgumentParser()
         commands = ["connect", "disconnect", "info"]
         parser.add_argument(
             'command', type=str, choices=commands, help="""
