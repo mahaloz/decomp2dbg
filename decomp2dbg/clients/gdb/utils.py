@@ -105,7 +105,7 @@ def is_32bit():
 
 def pc():
     try:
-        pc_ = int(gdb.execute("p/x $pc",to_string=True).split(" ")[-1], 16)
+        pc_ = int(gdb.execute("print/x $pc",to_string=True).split(" ")[-1], 16)
     except Exception:
         pc_ = None
 
