@@ -152,14 +152,11 @@ class GDBDecompilerClient(DecompilerClient):
         for offset, stack_var in stack_vars.items():
             offset = abs(int(offset, 0))
             type_str = self._clean_type_str(stack_var['type'])
-            print(type_str)
             lvar_bptr = self._find_local_var_base_ptr()
             if lvar_bptr == "$rbp":
                 offset -= 8
             elif lvar_bptr == "$ebp":
                 offset -= 4
-            else:
-                print(f"ptr is {lvar_bptr}")
 
             expr = f"""({type_str}*) ({lvar_bptr} - {offset})"""
             var_name = stack_var['name']
