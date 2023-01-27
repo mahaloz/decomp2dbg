@@ -89,13 +89,28 @@ class IDADecompilerServer:
             "global_vars": None,
             "function_headers": None
         }
+        self._base_addr = None
 
         # make the server init cache data once
         self.function_headers()
         self.global_vars()
 
+    def rebase_addr(self, addr, down=False):
+        if self._base_addr is None:
+            self._base_addr = idaapi.get_imagebase()
+
+        rebased = addr
+        if down:
+            rebased -= self._base_addr
+        elif addr < self._base_addr:
+            rebased += self._base_addr
+
+        return rebased
+
+
     @execute_read
     def decompile(self, addr):
+        addr = self.rebase_addr(addr)
         resp = {
             "decompilation": None,
             "curr_line": None,
@@ -141,6 +156,7 @@ class IDADecompilerServer:
 
     @execute_read
     def function_data(self, addr):
+        addr = self.rebase_addr(addr)
         resp = {
             "stack_vars": None,
             "reg_vars": None
@@ -211,7 +227,7 @@ class IDADecompilerServer:
                     continue
 
                 func_size = ida_funcs.get_func(f_addr).size()
-                resp[str(f_addr)] = {
+                resp[str(self.rebase_addr(f_addr, down=True))] = {
                     "name": func_name,
                     "size": func_size
                 }
@@ -244,7 +260,7 @@ class IDADecompilerServer:
                 if not name:
                     continue
 
-                resp[str(seg_ea)] = {
+                resp[str(self.rebase_addr(seg_ea, down=True))] = {
                     "name": name
                 }
 

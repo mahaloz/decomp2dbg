@@ -78,11 +78,13 @@ class SymbolMapper:
             queued_sym_sizes[i % max_commit_size] = size
 
             # absolute addressing
-            if addr >= self.text_base_addr:
-                addr_str = "{:#x}".format(addr)
+            #if addr >= self.text_base_addr:
+            #    addr_str = "{:#x}".format(addr)
             # relative addressing
-            else:
-                addr_str = ".text:{:#x}".format(addr)
+            #else:
+
+            # you always want relative adressing
+            addr_str = ".text:{:#x}".format(addr)
 
             # create a symbol command for the symbol
             objcopy_cmds.append(
