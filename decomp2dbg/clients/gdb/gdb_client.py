@@ -22,6 +22,7 @@ class GDBDecompilerClient(DecompilerClient):
         self.gdb_client: "GDBClient" = gdb_client
         self.symbol_mapper = SymbolMapper()
         self._is_pie = None
+        self._lvar_bptr = None
 
     @property
     @lru_cache()
@@ -103,10 +104,32 @@ class GDBDecompilerClient(DecompilerClient):
 
         return type_str
 
+    def _find_local_var_base_ptr(self):
+        if self._lvar_bptr is not None:
+            return self._lvar_bptr
+
+        candidates = ["$rbp", "$ebp", "$bp", "$fp"]
+        for candidate in candidates:
+            # the register must exist
+            try:
+                val = gdb.parse_and_eval(candidate)
+            except Exception:
+                continue
+
+            # the register must have a real value
+            try:
+                int(str(val), 16)
+            except Exception:
+                continue
+
+            self._lvar_bptr = candidate
+            return self._lvar_bptr
+
+
     def update_function_data(self, addr):
         func_data = self.function_data(addr)
-        reg_vars = func_data["reg_vars"]
-        stack_vars = func_data["stack_vars"]
+        reg_vars = func_data.get("reg_vars", {})
+        stack_vars = func_data.get("stack_vars", {})
 
         for name, var in reg_vars.items():
             type_str = self._clean_type_str(var['type'])
@@ -127,9 +150,15 @@ class GDBDecompilerClient(DecompilerClient):
                     continue
 
         for offset, stack_var in stack_vars.items():
-            offset = int(offset, 0)
+            offset = abs(int(offset, 0))
             type_str = self._clean_type_str(stack_var['type'])
-            expr = f"""({type_str}*) ($fp - {offset})"""
+            lvar_bptr = self._find_local_var_base_ptr()
+            if lvar_bptr == "$rbp":
+                offset -= 8
+            elif lvar_bptr == "$ebp":
+                offset -= 4
+
+            expr = f"""({type_str}*) ({lvar_bptr} - {offset})"""
             var_name = stack_var['name']
 
             try:
