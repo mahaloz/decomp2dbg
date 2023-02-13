@@ -1,6 +1,6 @@
 # decomp2dbg
 
-Reverse engineering often involves both static (decompiler) and dynamic (debugger) analysis, yet we often
+Reverse engineering involves both static (decompiler) and dynamic (debugger) analysis, yet we often
 use these analyses without sharing knowledge between the two. In the case of reversing static binaries, 
 context switching between debugger assembly and the symbols you have reversed in decompilation can be inefficient.
 
@@ -9,6 +9,9 @@ API for decompiler-to-debugger symbol syncing. In effect, giving the reverser th
 the symbols and decompilation lines they recover in their decompiler. 
 
 ![decomp2dbg](./assets/decomp2dbg.png)
+
+Interested in seeing what decomp2dbg looks like in practice? Checkout the recorded [talk at CactusCon 2023](https://youtu.be/-J8fGMt6UmE?t=22442), 
+featuring debugging a remote arm32 binary from a x64 machine with Ghidra symbols. 
 
 For active help, join the BinSync Discord below, where we answer decomp2dbg questions:
 
