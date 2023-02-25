@@ -5,6 +5,7 @@ import pwndbg
 from .gdb_client import GDBClient
 from .decompiler_pane import DecompilerPane
 from ...utils import *
+import xmlrpc.client
 
 
 class PwndbgDecompilerPane(DecompilerPane):
@@ -74,6 +75,11 @@ class PwndbgClient(GDBClient):
     def __init__(self):
         super(PwndbgClient, self).__init__()
         self.dec_pane = PwndbgDecompilerPane(self.dec_client)
+
+        # if we are connected to ghidra
+        if not isinstance(self.dec_client.server, xmlrpc.client.ServerProxy):
+            # reset the type handlers pwndbg adds
+            xmlrpc.client.Marshaller.dispatch[type(0)] = xmlrpc.client.Marshaller.dump_long
 
     def register_decompiler_context_pane(self, decompiler_name):
         pwndbg.commands.context.context_sections["g"] = self.dec_pane.context_gdecompiler
