@@ -132,7 +132,7 @@ class BinjaPlugin:
     def _init_ui(self):
         # config dialog
         configure_d2d_id = "Decomp2GDBG: Configure"
-        UIAction.registerAction(configure_d2d_id, QKeySequence(Qt.CTRL + Qt.SHIFT + Qt.Key_D))
+        UIAction.registerAction(configure_d2d_id, QKeySequence(Qt.CTRL | Qt.SHIFT | Qt.Key_D))
         UIActionHandler.globalActions().bindAction(
             configure_d2d_id, UIAction(self._launch_config)
         )
