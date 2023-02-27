@@ -39,7 +39,7 @@ class ConfigDialog(QDialog):
     def __init__(self, bv, parent=None):
         super().__init__(parent)
         self.bv = bv
-        self.setWindowTitle("Configure Decomp2DBG")
+        self.setWindowTitle("Configure decomp2dbg")
         self._main_layout = QVBoxLayout()
         self._host_edit = None  # type:QLineEdit
         self._port_edit = None  # type:QLineEdit
@@ -111,7 +111,7 @@ class ConfigDialog(QDialog):
         try:
             t.start()
         except Exception as e:
-            QMessageBox(self).critical(None, "Error starting Decomp2GEF Server", str(e))
+            QMessageBox(self).critical(None, "Error starting decomp2dbg Server", str(e))
             traceback.print_exc()
             return
 
@@ -131,14 +131,14 @@ class BinjaPlugin:
 
     def _init_ui(self):
         # config dialog
-        configure_d2d_id = "Decomp2GDBG: Configure"
+        configure_d2d_id = "decomp2dbg: Configure..."
         UIAction.registerAction(configure_d2d_id, QKeySequence(Qt.CTRL | Qt.SHIFT | Qt.Key_D))
         UIActionHandler.globalActions().bindAction(
             configure_d2d_id, UIAction(self._launch_config)
         )
 
         target_menu = "Tools" if int(core_version()[4:][:4]) < 3505 else "Plugins"
-        Menu.mainMenu(target_menu).addAction(configure_d2d_id, "Decomp2DBG")
+        Menu.mainMenu(target_menu).addAction(configure_d2d_id, "decomp2dbg")
 
     def _launch_config(self, bn_context):
         bv = bn_context.binaryView
