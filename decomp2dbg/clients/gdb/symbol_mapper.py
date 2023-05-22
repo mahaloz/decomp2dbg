@@ -2,6 +2,8 @@ from ...utils import *
 from .utils import *
 import tempfile
 from elftools.elf.elffile import ELFFile
+import shlex
+
 import gdb
 
 
@@ -86,9 +88,12 @@ class SymbolMapper:
             # you always want relative adressing
             addr_str = ".text:{:#x}".format(addr)
 
+            # clean name
+            name = self._clean_string(name)
+
             # create a symbol command for the symbol
             objcopy_cmds.append(
-                "--add-symbol '{name}'={addr_str},global,{type_flag}".format(
+                '--add-symbol {name}={addr_str},global,{type_flag}'.format(
                     name=name, addr_str=addr_str, type_flag=typ
                 )
             )
@@ -119,6 +124,10 @@ class SymbolMapper:
             return False
 
         return True
+
+    @staticmethod
+    def _clean_string(string: str):
+        return re.sub(r'[^\w_. -:]', '_', string)
 
     def _delete_old_sym_files(self):
         for sym_file in self._last_sym_files:
