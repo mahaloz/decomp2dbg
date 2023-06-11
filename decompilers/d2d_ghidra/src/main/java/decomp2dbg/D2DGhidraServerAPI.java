@@ -44,7 +44,7 @@ public class D2DGhidraServerAPI {
 		resp.put("func_name", "");
 		
 		var rebasedAddr = this.server.plugin.rebaseAddr(addr, false);
-		var func = this.server.plugin.getNearestFunction(this.server.plugin.rebaseAddr(addr, false));
+		var func = this.server.plugin.getNearestFunction(rebasedAddr);
 		var rebasedAddrLong = rebasedAddr.getOffset();
 		
 		if(func == null) {
@@ -139,7 +139,7 @@ public class D2DGhidraServerAPI {
 		Map<String, Object> resp = new HashMap<>();
 		var symTab = this.server.plugin.getCurrentProgram().getSymbolTable();
 		for (Symbol sym: symTab.getAllSymbols(true)) {
-			if (sym.getSymbolType() != SymbolType.LABEL || !sym.isExternal())
+			if (sym.getSymbolType() != SymbolType.LABEL)
 				continue;
 			
 			Map<String, Object> varInfo = new HashMap<>();
