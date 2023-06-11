@@ -1,0 +1,73 @@
+name: Ghidra Extension Build
+
+env:
+  ghidra-url: https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_10.2.2_build/ghidra_10.2.2_PUBLIC_20221115.zip
+  ghidra-zip-filename: ghidra_10.2.2_PUBLIC.zip
+  ghidra-directory: ghidra_10.2.2_PUBLIC
+
+on:
+  workflow_run:
+    workflows: [ "Release" ]
+    types:
+      - completed
+  pull_request:
+    branches: [ main ]
+    paths: ['decompilers/d2d_ghidra/**']
+  push:
+    branches: [ main ]
+    paths: ['decompilers/d2d_ghidra/**']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Download Ghidra release
+      uses: carlosperate/download-file-action@v1.0.3
+      id: download-ghidra
+      with:
+        file-url: ${{ env.ghidra-url }}
+        file-name: ${{ env.ghidra-zip-filename }}
+
+    - name: Unzip Ghidra
+      uses: TonyBogdanov/zip@1.0
+      with:
+        args: unzip -qq ${{ steps.download-ghidra.outputs.file-path }} -d .
+    - uses: actions/setup-java@v1
+      with:
+        java-version: '17.0.6'
+
+    - name: Build extension
+      uses: eskatos/gradle-command-action@v1
+      with:
+        gradle-version: '7.3'
+        build-root-directory: ${{ github.workspace }}/decompilers/d2d_ghidra/
+        arguments: '-PGHIDRA_INSTALL_DIR=${{ github.workspace }}/${{ env.ghidra-directory }}'
+
+    - name: Rename extension
+      run: cd decompilers/d2d_ghidra/dist/ && mv *.zip d2d-ghidra-plugin.zip
+    - name: Upload built extension
+      uses: actions/upload-artifact@v2
+      with:
+        name: extension
+        path: decompilers/d2d_ghidra/dist/d2d-ghidra-plugin.zip
+
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_run' }}
+    needs: build
+
+    steps:
+    - name: Download built extension
+      uses: actions/download-artifact@v2
+      with:
+        name: extension
+    - name: Upload To Github Release
+      uses: xresloader/upload-to-github-release@v1.3.12
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        file: "*.zip"
+        update_latest_release: true

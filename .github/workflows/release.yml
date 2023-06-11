@@ -13,13 +13,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Download Plugin
-        run: wget "https://github.com/mahaloz/d2d-ghidra-plugin/releases/latest/download/d2d-ghidra-plugin.zip"
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
           generateReleaseNotes: true
-          artifacts: "d2d-ghidra-plugin.zip"
 
   release-pypi:
     name: Release pypi package
