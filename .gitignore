@@ -1,6 +1,6 @@
 *.idea
 *.egg-info
-build*
+build/*
 *.pyc
 *.gdb_history
 decomp2dbg/decompilers
