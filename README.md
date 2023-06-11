@@ -37,7 +37,7 @@ pip3 install decomp2dbg && decomp2dbg --install
 ```
 
 This will open a prompt where you be asked to input the path to your decompiler and debugger of choice. For Ghidra installs,
-you must follow the extra steps to enable extensions [here](https://github.com/mahaloz/d2d-ghidra-plugin).
+you must follow the extra steps to enable extensions [here](https://github.com/mahaloz/decomp2dbg/tree/main/decompilers/d2d_ghidra/README.md).
 If you installed the decompiler-side in the Binja Plugin Manager, you still need to install the debugger side with the above.
 
 **Note**: You may need to allow inbound connections on port 3662, or the port you use, for decomp2dbg to connect
