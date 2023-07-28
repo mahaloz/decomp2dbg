@@ -64,7 +64,7 @@ public class D2DGhidraServerAPI {
 	    var decLines = dec.getDecompiledFunction().getC().split("\n");
 	    resp.put("decompilation", decLines);
 		
-		PrettyPrinter pp = new PrettyPrinter(func, dec.getCCodeMarkup());
+		PrettyPrinter pp = new PrettyPrinter(func, dec.getCCodeMarkup(), null);
 	    ArrayList<ClangLine> lines = pp.getLines();
 	    
 	    // locate the decompilation line

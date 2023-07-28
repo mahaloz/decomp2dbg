@@ -1,9 +1,9 @@
 name: Ghidra Extension Build
 
 env:
-  ghidra-url: https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_10.3_build/ghidra_10.3_PUBLIC_20230510.zip
-  ghidra-zip-filename: ghidra_10.3_PUBLIC.zip
-  ghidra-directory: ghidra_10.3_PUBLIC
+  ghidra-url: https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_10.3.2_build/ghidra_10.3.2_PUBLIC_20230711.zip
+  ghidra-zip-filename: ghidra_10.3.2_PUBLIC.zip
+  ghidra-directory: ghidra_10.3.2_PUBLIC
 
 on:
   workflow_run:
