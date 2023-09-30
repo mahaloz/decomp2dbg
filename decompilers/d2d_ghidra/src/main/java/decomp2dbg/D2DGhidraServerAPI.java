@@ -152,5 +152,36 @@ public class D2DGhidraServerAPI {
 		this.server.plugin.gVarCache = resp;
 		return resp;
 	}
-	
+
+	public Map<String, Object> structs() {
+		// check the cache before doing hard work!
+		if(!this.server.plugin.structCache.isEmpty())
+			return this.server.plugin.structCache;
+
+		// if we are here, this is first connection!
+		Map<String, Object> resp = new HashMap<>();
+		var program = this.server.plugin.getCurrentProgram();
+		var dtm = program.getDataTypeManager();
+		var structs = dtm.getAllStructures();
+		while (structs.hasNext()) {
+			var struct = structs.next();
+			Map<String, Object> structInfo = new HashMap<>();
+			structInfo.put("name", struct.getName());
+			// Enumerate members
+			ArrayList<Object> memberInfo = new ArrayList<>();
+			for (var member : struct.getComponents()) {
+				Map<String, Object> memberData = new HashMap<>();
+				memberData.put("name", member.getFieldName());
+				memberData.put("size", member.getLength());
+				memberData.put("type", member.getDataType().getName());
+				memberInfo.add(memberData);
+			}
+			structInfo.put("members", memberInfo);
+			resp.put(struct.getName(), structInfo);
+		}
+
+		// cache it for next request
+		this.server.plugin.structCache = resp;
+		return resp;
+	}
 }
