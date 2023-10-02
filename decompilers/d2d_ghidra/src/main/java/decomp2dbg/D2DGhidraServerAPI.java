@@ -157,28 +157,46 @@ public class D2DGhidraServerAPI {
 		// check the cache before doing hard work!
 		if(!this.server.plugin.structCache.isEmpty())
 			return this.server.plugin.structCache;
-
+	
 		// if we are here, this is first connection!
-		Map<String, Object> resp = new HashMap<>();
+		ArrayList<Object> structInfos = new ArrayList<>();
 		var program = this.server.plugin.getCurrentProgram();
 		var dtm = program.getDataTypeManager();
 		var structs = dtm.getAllStructures();
+
 		while (structs.hasNext()) {
 			var struct = structs.next();
 			Map<String, Object> structInfo = new HashMap<>();
 			structInfo.put("name", struct.getName());
 			// Enumerate members
+			var members = struct.getComponents();
+			// For unknown reasons, the API claims that some targets have structures with a crazy number of members (in the millions).
+			// This causes an infinite loop.
+			// May be caused by a bug in some other plugin, not sure.
+			if (members.length > 1000) {
+				continue;
+			}
 			ArrayList<Object> memberInfo = new ArrayList<>();
-			for (var member : struct.getComponents()) {
+			var unnamedMembers = 0;
+			for (var member : members) {
 				Map<String, Object> memberData = new HashMap<>();
-				memberData.put("name", member.getFieldName());
+				// Some fields don't have names, and the XMLRPC impl does not like that.
+				// Work around by assigning a surrogate name.
+				var name = member.getFieldName();
+				if (member.getFieldName() == null) {
+					name = "unnamed" + unnamedMembers;
+					unnamedMembers++;
+				}
+				memberData.put("name", name);
 				memberData.put("size", member.getLength());
 				memberData.put("type", member.getDataType().getName());
 				memberInfo.add(memberData);
 			}
 			structInfo.put("members", memberInfo);
-			resp.put(struct.getName(), structInfo);
+			structInfos.add(structInfo);
 		}
+		Map<String, Object> resp = new HashMap<>();
+		resp.put("struct_info", structInfos);
 
 		// cache it for next request
 		this.server.plugin.structCache = resp;
