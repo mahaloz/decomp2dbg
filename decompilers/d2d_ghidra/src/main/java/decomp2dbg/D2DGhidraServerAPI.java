@@ -183,13 +183,14 @@ public class D2DGhidraServerAPI {
 				// Some fields don't have names, and the XMLRPC impl does not like that.
 				// Work around by assigning a surrogate name.
 				var name = member.getFieldName();
-				if (member.getFieldName() == null) {
+				if (name == null) {
 					name = "unnamed" + unnamedMembers;
 					unnamedMembers++;
 				}
 				memberData.put("name", name);
 				memberData.put("size", member.getLength());
 				memberData.put("type", member.getDataType().getName());
+				memberData.put("offset", member.getOffset());
 				memberInfo.add(memberData);
 			}
 			structInfo.put("members", memberInfo);
