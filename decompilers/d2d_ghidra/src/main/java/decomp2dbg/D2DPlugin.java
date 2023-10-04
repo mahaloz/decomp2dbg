@@ -53,6 +53,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 	public Map<String, Object> gVarCache;
 	public Map<String, Object> funcSymCache;
 	public Map<Integer, Object> funcDataCache;
+	public Map<String, Object> structCache;
 	
 	public D2DPlugin(PluginTool tool) {
 		super(tool);
@@ -66,6 +67,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		gVarCache = new HashMap<>();
 		funcSymCache = new HashMap<>();
 		funcDataCache = new HashMap<>();
+		structCache = new HashMap<>();
 	}
 	
 	@Override
@@ -243,8 +245,16 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 			ChangeManager.DOCR_SYMBOL_RENAMED,
 			ChangeManager.DOCR_SYMBOL_DATA_CHANGED
 		));
-		
-		
+
+		ArrayList<Integer> typeEvents = new ArrayList<>(Arrays.asList(
+			ChangeManager.DOCR_DATA_TYPE_CHANGED,
+			ChangeManager.DOCR_DATA_TYPE_REPLACED,
+			ChangeManager.DOCR_DATA_TYPE_RENAMED,
+			ChangeManager.DOCR_DATA_TYPE_SETTING_CHANGED,
+			ChangeManager.DOCR_DATA_TYPE_MOVED,
+			ChangeManager.DOCR_DATA_TYPE_ADDED
+		));
+
 		for (DomainObjectChangeRecord record : ev) {
 			// only analyze changes to the current program 
 			if( !(record instanceof ProgramChangeRecord) )
@@ -264,6 +274,15 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 				var funcAddr = pcr.getStart().getOffset();
 				this.funcDataCache.put((int) funcAddr, null);
 				this.decompileCache.put(funcAddr, null);
+			}
+			
+			/*
+			* Type (struct) updated or created
+			*/
+			else if (typeEvents.contains(chgType)) {
+				// For now, just clear the cache. It'll get regenerated on next call.
+				// TODO: More fine-grained handling
+				this.structCache.clear();
 			}
 			
 			/*
