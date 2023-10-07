@@ -203,4 +203,124 @@ public class D2DGhidraServerAPI {
 		this.server.plugin.structCache = resp;
 		return resp;
 	}
+
+	public Map<String, Object> type_aliases() {
+		// check the cache before doing hard work!
+		if(!this.server.plugin.typeAliasCache.isEmpty())
+			return this.server.plugin.typeAliasCache;
+
+		// if we are here, this is first connection!
+		ArrayList<Object> aliasInfos = new ArrayList<>();
+		var program = this.server.plugin.getCurrentProgram();
+		var dtm = program.getDataTypeManager();
+		var allTypes = dtm.getAllDataTypes();
+		while (allTypes.hasNext()) {
+			var type = allTypes.next();
+
+			if (!(type instanceof ghidra.program.model.data.TypeDef))
+				continue;
+			var alias = ((ghidra.program.model.data.TypeDef) type);
+
+
+			Map<String, Object> aliasInfo = new HashMap<>();
+			aliasInfo.put("name", type.getName());
+			aliasInfo.put("type", alias.getDataType().getName());
+			aliasInfo.put("size", type.getLength());
+			aliasInfos.add(aliasInfo);
+		}
+		Map<String, Object> resp = new HashMap<>();
+		resp.put("alias_info", aliasInfos);
+
+		// cache it for next request
+		this.server.plugin.typeAliasCache = resp;
+		return resp;
+	}
+
+	public Map<String, Object> unions() {
+		// check the cache before doing hard work!
+		if(!this.server.plugin.unionCache.isEmpty())
+			return this.server.plugin.unionCache;
+
+		// if we are here, this is first connection!
+		ArrayList<Object> unionInfos = new ArrayList<>();
+		var program = this.server.plugin.getCurrentProgram();
+		var dtm = program.getDataTypeManager();
+		var types = dtm.getAllDataTypes();
+		while (types.hasNext()) {
+			var type = types.next();
+
+			if (!(type instanceof ghidra.program.model.data.Union))
+				continue;
+			var union = ((ghidra.program.model.data.Union) type);
+
+			Map<String, Object> unionInfo = new HashMap<>();
+			unionInfo.put("name", union.getName());
+			// Enumerate members
+			var members = union.getComponents();
+			ArrayList<Object> memberInfo = new ArrayList<>();
+			for (var member : members) {
+				Map<String, Object> memberData = new HashMap<>();
+				memberData.put("name", member.getFieldName());
+				memberData.put("size", member.getLength());
+				memberData.put("type", member.getDataType().getName());
+				memberData.put("offset", member.getOffset());
+				memberInfo.add(memberData);
+			}
+			unionInfo.put("members", memberInfo);
+			unionInfos.add(unionInfo);
+		}
+		Map<String, Object> resp = new HashMap<>();
+		resp.put("union_info", unionInfos);
+
+		// cache it for next request
+		this.server.plugin.unionCache = resp;
+		return resp;
+	}
+
+	public Map<String, Object> enums() {
+		// check the cache before doing hard work!
+		if(!this.server.plugin.enumCache.isEmpty())
+			return this.server.plugin.enumCache;
+
+		// if we are here, this is first connection!
+		ArrayList<Object> enumInfos = new ArrayList<>();
+		var program = this.server.plugin.getCurrentProgram();
+		var dtm = program.getDataTypeManager();
+		var types = dtm.getAllDataTypes();
+		while (types.hasNext()) {
+			var type = types.next();
+
+			if (!(type instanceof ghidra.program.model.data.Enum))
+				continue;
+			var enumType = ((ghidra.program.model.data.Enum) type);
+
+			Map<String, Object> enumInfo = new HashMap<>();
+			enumInfo.put("name", enumType.getName());
+			// Enumerate values
+			var values = enumType.getValues();
+			ArrayList<Object> valueInfo = new ArrayList<>();
+			for (var value : values) {
+				Map<String, Object> valueData = new HashMap<>();
+				valueData.put("name", enumType.getName(value));
+				// Apache XMLRPC doesn't support transport of long values without extensions,
+				// therefore we have to cast truncate them here.
+				// Alternatively we could enable extensions by configuring enabledForExtensions = true,
+				// but some RPC clients may not like it.
+				if (value > Integer.MAX_VALUE) {
+					continue;
+				}
+				valueData.put("value", (int)value);
+				valueInfo.add(valueData);
+			}
+			enumInfo.put("members", valueInfo);
+			enumInfos.add(enumInfo);
+		}
+		
+		Map<String, Object> resp = new HashMap<>();
+		resp.put("enum_info", enumInfos);
+
+		// cache it for next request
+		this.server.plugin.enumCache = resp;
+		return resp;
+	}
 }
