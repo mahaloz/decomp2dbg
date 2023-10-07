@@ -54,6 +54,9 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 	public Map<String, Object> funcSymCache;
 	public Map<Integer, Object> funcDataCache;
 	public Map<String, Object> structCache;
+	public Map<String, Object> typeAliasCache;
+	public Map<String, Object> unionCache;
+	public Map<String, Object> enumCache;
 	
 	public D2DPlugin(PluginTool tool) {
 		super(tool);
@@ -68,6 +71,9 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		funcSymCache = new HashMap<>();
 		funcDataCache = new HashMap<>();
 		structCache = new HashMap<>();
+		typeAliasCache = new HashMap<>();
+		unionCache = new HashMap<>();
+		enumCache = new HashMap<>();
 	}
 	
 	@Override
@@ -277,12 +283,15 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 			}
 			
 			/*
-			* Type (struct) updated or created
+			* Type updated or created
 			*/
 			else if (typeEvents.contains(chgType)) {
 				// For now, just clear the cache. It'll get regenerated on next call.
 				// TODO: More fine-grained handling
 				this.structCache.clear();
+				this.typeAliasCache.clear();
+				this.unionCache.clear();
+				this.enumCache.clear();
 			}
 			
 			/*
