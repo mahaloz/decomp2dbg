@@ -57,7 +57,7 @@ def vmmap_base_addrs():
     for mapping in mappings:
         try:
             addr = int(re.findall(r"0x[0-9a-fA-F]+", mapping)[0], 16)
-            path = re.findall(r"(/.*)", mappings)[0].strip()
+            path = re.findall(r"(/.*)", mapping)[0].strip()
         except IndexError:
             continue
 
