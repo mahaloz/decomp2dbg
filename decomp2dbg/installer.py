@@ -1,33 +1,31 @@
 import textwrap
 from urllib.request import urlretrieve
 
-import pkg_resources
-from pathlib import Path
-
-from binsync.installer import Installer
+from libbs.plugin_installer import LibBSPluginInstaller, PluginInstaller
 
 
-class Decomp2dbgInstaller(Installer):
+class D2dInstaller(LibBSPluginInstaller):
     def __init__(self):
-        super(Decomp2dbgInstaller, self).__init__(targets=Installer.DECOMPILERS + ('gdb',))
-        self.plugins_path = Path(
-            pkg_resources.resource_filename("decomp2dbg", f"decompilers")
-        )
-    
+        super().__init__(targets=PluginInstaller.DECOMPILERS + PluginInstaller.DEBUGGERS)
+        pkg_files = self.find_pkg_files("decomp2dbg")
+        if pkg_files is None:
+            raise RuntimeError("Failed to find decomp2dbg package files! Please reinstall or file an issue.")
+
+        self.plugins_path = pkg_files / "decompilers"
+
     def display_prologue(self):
         print(textwrap.dedent("""
+        Now installing...
                __                               ___       ____         
           ____/ /__  _________  ____ ___  ____ |__ \ ____/ / /_  ____ _
          / __  / _ \/ ___/ __ \/ __ `__ \/ __ \__/ // __  / __ \/ __ `/
         / /_/ /  __/ /__/ /_/ / / / / / / /_/ / __// /_/ / /_/ / /_/ / 
         \__,_/\___/\___/\____/_/ /_/ /_/ .___/____/\__,_/_.___/\__, /  
                                       /_/                     /____/   
-        Now installing decomp2dbg...
-        Please input decompiler/debugger install paths as prompted. Enter nothing to either use
-        the default install path if one exists, or to skip.
+        The Decompiler to Debugger Bridge
         """))
 
-    def install_gdb(self, path=None):
+    def install_gdb(self, path=None, interactive=True):
         path = super().install_gdb(path=None)
         if path is None:
             return None
@@ -46,7 +44,7 @@ class Decomp2dbgInstaller(Installer):
 
         return path
 
-    def install_ida(self, path=None):
+    def install_ida(self, path=None, interactive=True):
         ida_plugin_path = super().install_ida(path=path)
         if ida_plugin_path is None:
             return
@@ -59,7 +57,7 @@ class Decomp2dbgInstaller(Installer):
         self.link_or_copy(src_d2d_ida_py, dst_d2d_ida_py)
         return dst_d2d_ida_pkg
 
-    def install_angr(self, path=None):
+    def install_angr(self, path=None, interactive=True):
         angr_plugin_path = super().install_angr(path=path)
         if angr_plugin_path is None:
             return None
@@ -69,7 +67,7 @@ class Decomp2dbgInstaller(Installer):
         self.link_or_copy(src_d2d_angr_pkg, dst_d2d_angr_pkg, is_dir=True)
         return dst_d2d_angr_pkg
 
-    def install_ghidra(self, path=None):
+    def install_ghidra(self, path=None, interactive=True):
         ghidra_path = super().install_ghidra(path=path)
         if ghidra_path is None:
             return None
@@ -79,7 +77,7 @@ class Decomp2dbgInstaller(Installer):
         urlretrieve(download_url, dst_path)
         return dst_path
 
-    def install_binja(self, path=None):
+    def install_binja(self, path=None, interactive=True):
         binja_plugin_path = super().install_binja(path=path)
         if binja_plugin_path is None:
             return None

@@ -43,7 +43,7 @@ def _copy_decomp_plugins():
 
 class build(st_build):
     def run(self, *args):
-        self.execute(_copy_decomp_plugins, (), msg="Copying binsync plugins")
+        self.execute(_copy_decomp_plugins, (), msg="Copying plugins")
         super().run(*args)
 
 class develop(st_develop):
