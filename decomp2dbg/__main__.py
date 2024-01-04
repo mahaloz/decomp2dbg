@@ -1,6 +1,6 @@
 import argparse
 
-from .installer import Decomp2dbgInstaller
+from .installer import D2dInstaller
 
 
 def main():
@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
 
     if args.install:
-        Decomp2dbgInstaller().install()
+        D2dInstaller().install()
 
 
 if __name__ == "__main__":
