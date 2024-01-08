@@ -30,6 +30,14 @@ class DecompilerPane:
         # decompile the current pc location
         try:
             resp = self.decompiler.decompile(rebased_pc)
+        except OverflowError as e:
+            warn(
+                f"Decompiler failed to get a response from decompiler on "
+                f"{hex(rebased_pc) if isinstance(
+                    rebased_pc, int) else rebased_pc} with: {e}"
+                f", are you in a library function?"
+            )
+            return False
         except Exception as e:
             warn(f"Decompiler failed to get a response from decompiler on "
                  f"{hex(rebased_pc) if isinstance(rebased_pc,int) else rebased_pc} with: {e}")
