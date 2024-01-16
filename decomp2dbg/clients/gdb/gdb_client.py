@@ -23,6 +23,7 @@ class GDBDecompilerClient(DecompilerClient):
         self.symbol_mapper = SymbolMapper()
         self._is_pie = None
         self._lvar_bptr = None
+        self._symbol_cache = set()
 
     @property
     @lru_cache()
@@ -52,6 +53,13 @@ class GDBDecompilerClient(DecompilerClient):
     def decompiler_disconnected(self):
         self.gdb_client.on_decompiler_disconnected(self.name)
 
+    def _cache(self, item):
+        if item in self._symbol_cache:
+            return False
+
+        self._symbol_cache.add(item)
+        return True
+
     def update_symbols(self):
         self.symbol_mapper.text_base_addr = self.text_base_addr
 
@@ -66,7 +74,10 @@ class GDBDecompilerClient(DecompilerClient):
 
         # add symbols with native support if possible
         for addr, func in func_headers.items():
-            syms_to_add.append((func["name"], int(addr, 0), "function", func["size"]))
+            symbol = (func["name"], int(addr, 0), "function", func["size"])
+            new_entry = self._cache(symbol)
+            if new_entry:
+                syms_to_add.append(symbol)
             sym_name_set.add(func["name"])
 
         for addr, global_var in global_vars.items():
@@ -75,7 +86,10 @@ class GDBDecompilerClient(DecompilerClient):
             if clean_name in sym_name_set:
                 continue
 
-            syms_to_add.append((clean_name, int(addr, 0), "object", global_var_size))
+            symbol = (clean_name, int(addr,0), "object", global_var_size)
+            new_entry = self._cache(symbol)
+            if new_entry:
+                syms_to_add.append(symbol)
 
         try:
             self.symbol_mapper.add_native_symbols(syms_to_add)
