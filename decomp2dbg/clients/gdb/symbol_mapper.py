@@ -62,9 +62,6 @@ class SymbolMapper:
             return False
 
         # info("{:d} symbols will be added".format(len(sym_info_list)))
-        if len(sym_info_list) == 0:
-            return True
-
         self._delete_old_sym_files()
 
         # add each symbol into a mass symbol commit
