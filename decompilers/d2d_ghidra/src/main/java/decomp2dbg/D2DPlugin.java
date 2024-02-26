@@ -57,6 +57,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 	public Map<String, Object> typeAliasCache;
 	public Map<String, Object> unionCache;
 	public Map<String, Object> enumCache;
+	public Map<String, Object> elfInfoCache;
 	
 	public D2DPlugin(PluginTool tool) {
 		super(tool);
@@ -74,6 +75,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		typeAliasCache = new HashMap<>();
 		unionCache = new HashMap<>();
 		enumCache = new HashMap<>();
+		elfInfoCache = new HashMap<>();
 	}
 	
 	@Override

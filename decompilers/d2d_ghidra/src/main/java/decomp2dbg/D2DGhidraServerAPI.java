@@ -6,6 +6,9 @@ import java.util.Map;
 
 import ghidra.app.decompiler.ClangLine;
 import ghidra.app.decompiler.PrettyPrinter;
+import ghidra.app.util.bin.MemoryByteProvider;
+import ghidra.app.util.bin.format.elf.ElfException;
+import ghidra.app.util.bin.format.elf.ElfHeader;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.symbol.Symbol;
 import ghidra.program.model.symbol.SymbolType;
@@ -322,5 +325,34 @@ public class D2DGhidraServerAPI {
 		// cache it for next request
 		this.server.plugin.enumCache = resp;
 		return resp;
+	}
+
+	public Map<String, Object> elf_info() {
+		if(!this.server.plugin.elfInfoCache.isEmpty())
+			return this.server.plugin.elfInfoCache;
+
+		Map<String, Object> elf_info = new HashMap<>();
+
+		var program = this.server.plugin.getCurrentProgram();
+		var provider = new MemoryByteProvider(program.getMemory(), program.getMinAddress());
+		ElfHeader header = null;
+		try {
+			header = new ElfHeader(provider, null);
+		}
+		catch (ElfException e) {
+			elf_info.put("error", e.toString());
+			return elf_info;
+		}
+
+		elf_info.put("flags", "0x" + Integer.toHexString(header.e_flags()));
+		elf_info.put("machine", (int) header.e_machine());
+		elf_info.put("is_big_endian", header.isBigEndian());
+		elf_info.put("is_32_bit", header.is32Bit());
+		elf_info.put("image_base", "0x" + Long.toHexString(program.getMinAddress().getOffset()));
+		elf_info.put("name", program.getName());
+		elf_info.put("error", "");
+
+		this.server.plugin.elfInfoCache = elf_info;
+		return elf_info;
 	}
 }
