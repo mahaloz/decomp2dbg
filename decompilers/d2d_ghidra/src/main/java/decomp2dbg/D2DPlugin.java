@@ -102,6 +102,18 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		configureD2DAction.setKeyBindingData(new KeyBindingData(KeyStroke.getKeyStroke('D', Event.CTRL_MASK + Event.SHIFT_MASK)));
 		return configureD2DAction;
 	}
+
+	private void clearCache() {
+		this.decompileCache.clear();
+		this.gVarCache.clear();
+		this.funcSymCache.clear();
+		this.funcDataCache.clear();
+		this.structCache.clear();
+		this.typeAliasCache.clear();
+		this.unionCache.clear();
+		this.enumCache.clear();
+		this.elfInfoCache.clear();
+	}
 	
 	private void configureD2DServer() {
 		Msg.info(this, "Configuring decomp2dbg...");
@@ -125,7 +137,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 			}
 		} else 
 			return;
-		
+
 		this.server = new D2DGhidraServer(host, port, this);
 		
 		try {
@@ -134,7 +146,9 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 			JOptionPane.showMessageDialog(null, "Encountered error: " + e.toString());
 			return;
 		}
-		
+
+		this.clearCache();
+
 		JOptionPane.showMessageDialog(null, "Sever configured and running!");
 	}
 	
