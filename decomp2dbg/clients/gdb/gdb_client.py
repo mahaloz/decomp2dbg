@@ -246,10 +246,10 @@ class DecompilerCommand(gdb.Command):
             err("You must provide a decompiler name when using this command!")
             return
 
-        if (args.base_addr_start != None and args.base_addr_end == None) or (args.base_addr_end != None  and args.base_addr_start == None):
+        if (args.base_addr_start is not None and args.base_addr_end is None) or (args.base_addr_end is not None and args.base_addr_start is None):
             err("You must use --base-addr-start and --base-addr-end together")
             return
-        elif args.base_addr_start != None and args.base_addr_end != None:
+        elif args.base_addr_start is not None and args.base_addr_end is not None:
             if args.base_addr_start > args.base_addr_end:
                 err("Your provided base-addr-start must be smaller than your base-addr-end")
                 return
