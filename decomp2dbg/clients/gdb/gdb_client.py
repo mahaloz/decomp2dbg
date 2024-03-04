@@ -241,15 +241,18 @@ class DecompilerCommand(gdb.Command):
         handler = getattr(self, handler_str)
         handler(args)
 
+    def _is_arg_set(self, arg):
+        return arg != None
+
     def _handle_connect(self, args):
         if not args.decompiler_name:
             err("You must provide a decompiler name when using this command!")
             return
 
-        if (args.base_addr_start and not args.base_addr_end) or (args.base_addr_end and not args.base_addr_start):
+        if (self._is_arg_set(args.base_addr_start) and not self._is_arg_set(args.base_addr_end)) or (self._is_arg_set(args.base_addr_end) and not self._is_arg_set(args.base_addr_start)):
             err("You must use --base-addr-start and --base-addr-end together")
             return
-        elif args.base_addr_start and args.base_addr_end:
+        elif self._is_arg_set(args.base_addr_start) and self._is_arg_set(args.base_addr_end):
             if args.base_addr_start > args.base_addr_end:
                 err("Your provided base-addr-start must be smaller than your base-addr-end")
                 return
