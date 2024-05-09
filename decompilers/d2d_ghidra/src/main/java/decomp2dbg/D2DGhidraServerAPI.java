@@ -121,6 +121,9 @@ public class D2DGhidraServerAPI {
 		var fm = program.getFunctionManager();
 		var functions = fm.getFunctions(true);
 		for (Function func : functions) {
+		    if(func == null)
+                continue;
+
 			Map<String, Object> funcInfo = new HashMap<>();
 			funcInfo.put("name", func.getName());
 			funcInfo.put("size", (int) func.getBody().getNumAddresses());
