@@ -362,6 +362,9 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 					var addr = sym.getAddress().getOffset();
 					
 					var func = this.getCurrentProgram().getFunctionManager().getFunction(addr);
+					if(func == null)
+                        continue;
+
 					Map<String, Object> funcInfo = new HashMap<>();
 					funcInfo.put("name", newName);
 					funcInfo.put("size", (int) func.getBody().getNumAddresses());
