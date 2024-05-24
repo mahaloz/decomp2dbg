@@ -134,11 +134,10 @@ class GDBDecompilerClient(DecompilerClient):
         for name, var in reg_vars.items():
             type_str = self._clean_type_str(var['type'])
             reg_name = var['reg_name']
-            expr = f"""(({type_str}) (${reg_name})"""
+            expr = f"""(({type_str}) (${reg_name}))"""
 
             try:
-                val = gdb.parse_and_eval(expr)
-                gdb.execute(f"set ${name} = {val}")
+                gdb.execute(f"set ${name} = {expr}")
                 type_unknown = False
             except Exception:
                 type_unknown = True
