@@ -8,6 +8,7 @@ import collections
 import re
 import tempfile
 import hashlib
+from pathlib import Path
 
 from elftools.elf.elffile import ELFFile
 
@@ -191,30 +192,36 @@ def pid() -> int:
 def get_filepath() -> Optional[str]:
     """Return the local absolute path of the file currently debugged."""
     filename = gdb.current_progspace().filename
-
+    filepath = None
     if is_remote_debug():
         # if no filename specified, try downloading target from /proc
         if filename is None:
             pid_ = pid()
             if pid_ > 0:
-                return download_file(f"/proc/{pid_:d}/exe", use_cache=True)
-            return None
-
+                filepath = download_file(f"/proc/{pid_:d}/exe", use_cache=True)
         # if target is remote file, download
         elif filename.startswith("target:"):
             fname = filename[len("target:") :]
-            return download_file(fname, use_cache=True, local_name=fname)
+            filepath = download_file(fname, use_cache=True, local_name=fname)
 
         elif filename.startswith(".gnu_debugdata for target:"):
             fname = filename[len(".gnu_debugdata for target:") :]
-            return download_file(fname, use_cache=True, local_name=fname)
-
-        return filename
+            filepath = download_file(fname, use_cache=True, local_name=fname)
+        else:
+            filepath = filename
     else:
         if filename is not None:
-            return filename
-        # inferior probably did not have name, extract cmdline from info proc
-        return get_path_from_info_proc()
+            filepath = filename
+        else:
+            # inferior probably did not have name, extract cmdline from info proc
+            filepath = get_path_from_info_proc()
+
+    try:
+        filepath = Path(filepath).resolve()
+    except Exception:
+        err(f"Failed to resolve path in get_filepath(): {filepath}, this error is fatal.")
+
+    return str(filepath) if filepath else None
 
 
 def get_path_from_info_proc() -> Optional[str]:
