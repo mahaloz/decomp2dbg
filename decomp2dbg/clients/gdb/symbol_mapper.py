@@ -93,7 +93,7 @@ class SymbolMapper:
 
             # create a symbol command for the symbol
             objcopy_cmds.append(
-                '--add-symbol {name}={addr_str},global,{type_flag}'.format(
+                '--add-symbol "{name}={addr_str},global,{type_flag}"'.format(
                     name=name, addr_str=addr_str, type_flag=typ
                 )
             )
