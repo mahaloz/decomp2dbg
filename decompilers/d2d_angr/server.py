@@ -80,7 +80,12 @@ class AngrDecompilerServer:
         func_addr = self._instance.cfg.get_any_node(addr, anyaddr=True).function_address
         func = self._instance.kb.functions[func_addr]
         decomp = self._decompile_function(func)
-        pos = decomp.map_addr_to_pos.get_nearest_pos(addr)
+        try:
+            pos = decomp.map_addr_to_pos.get_nearest_pos(addr)
+        except Exception as e:
+            print(f"Failed to get nearest pos: {e} for {hex(addr)}, skipping decomp")
+            return resp
+
         size = len(decomp.text)
         line_end = decomp.text.find("\n", pos)
         line_start = size - decomp.text[::-1].find("\n", size - line_end)
