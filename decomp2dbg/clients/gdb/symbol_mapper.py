@@ -163,8 +163,8 @@ class SymbolMapper:
 
         required_sections = [".text", ".interp", ".rela.dyn", ".dynamic", ".bss"]
         for s in elf.iter_sections():
-            # keep some required sections
-            if s.name in required_sections:
+            # keep some required sections, skip broken ones
+            if not s.name or s.name in required_sections:
                 continue
             os.system(f"{self._objcopy} --remove-section={s.name} {fname}.debug 2>/dev/null")
 
