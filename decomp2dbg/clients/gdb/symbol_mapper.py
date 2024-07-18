@@ -162,11 +162,13 @@ class SymbolMapper:
         elf = ELFFile(open(f'{fname}.debug', 'rb'))
 
         required_sections = [".text", ".interp", ".rela.dyn", ".dynamic", ".bss"]
-        for s in elf.iter_sections():
-            # keep some required sections
-            if s.name in required_sections:
+        all_sections = [s.name for s in elf.iter_sections()]
+        for s_name in all_sections:
+            # keep some required sections, skip broken ones
+            if not s_name or s_name in required_sections:
                 continue
-            os.system(f"{self._objcopy} --remove-section={s.name} {fname}.debug 2>/dev/null")
+
+            os.system(f"{self._objcopy} --remove-section={s_name} {fname}.debug 2>/dev/null")
 
         # cache the small object file for use
         self._elf_cache["fname"] = fname + ".debug"
