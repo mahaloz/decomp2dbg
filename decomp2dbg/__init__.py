@@ -1,4 +1,4 @@
-__version__ = "3.9.5"
+__version__ = "3.9.6"
 
 try:
     from .clients.client import DecompilerClient
