@@ -12,12 +12,14 @@ public class D2DGhidraProcessorFactoryFactory implements RequestProcessorFactory
 		this.api = api;
 	}
 
+	@Override
 	public RequestProcessorFactory getRequestProcessorFactory(Class aClass) 
 			throws XmlRpcException {
 		return factory;
 	}
 
 	private class D2DGhidraProcessorFactory implements RequestProcessorFactory {
+		@Override
 		public Object getRequestProcessor(XmlRpcRequest xmlRpcRequest)
 				throws XmlRpcException {
 			return api;
