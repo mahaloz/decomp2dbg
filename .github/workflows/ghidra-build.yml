@@ -37,7 +37,7 @@ jobs:
         args: unzip -qq ${{ steps.download-ghidra.outputs.file-path }} -d .
     - uses: actions/setup-java@v1
       with:
-        java-version: '17.0.6'
+        java-version: '21'
 
     - name: Build extension
       uses: eskatos/gradle-command-action@v1
