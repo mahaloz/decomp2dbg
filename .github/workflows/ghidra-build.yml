@@ -42,7 +42,7 @@ jobs:
     - name: Build extension
       uses: eskatos/gradle-command-action@v1
       with:
-        gradle-version: '7.3'
+        gradle-version: '8.5'
         build-root-directory: ${{ github.workspace }}/decompilers/d2d_ghidra/
         arguments: '-PGHIDRA_INSTALL_DIR=${{ github.workspace }}/${{ env.ghidra-directory }}'
 
