@@ -1,0 +1,13 @@
+[meta]
+plugin_metadata_version = 0
+
+[plugin]
+name = "DAILA_plugin"
+shortname = "DAILA_plugin"
+version = "0.0.0"
+description = ""
+long_description = "The Decompiler Artificial Intelligence Assistant (DAILA)."
+platforms = ["windows", "linux", "macos"]
+min_angr_version = "9.0.0.0"
+author = "mahaloz"
+entrypoints = ["daila_plugin.py"]

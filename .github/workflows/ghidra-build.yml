@@ -49,7 +49,7 @@ jobs:
     - name: Rename extension
       run: cd decompilers/d2d_ghidra/dist/ && mv *.zip d2d-ghidra-plugin.zip
     - name: Upload built extension
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: extension
         path: decompilers/d2d_ghidra/dist/d2d-ghidra-plugin.zip
@@ -61,7 +61,7 @@ jobs:
 
     steps:
     - name: Download built extension
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: extension
     - name: Upload To Github Release
