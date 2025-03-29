@@ -21,7 +21,7 @@ For active help, join the BinSync Discord below, where we answer decomp2dbg ques
 ### Decompilers
 - IDA Pro (>= 7.0): [Demo w/ GEF](https://asciinema.org/a/442740)
 - Binary Ninja (>= 2.4): [Demo w/ GEF](https://t.co/M2IZd0fmi3)
-- Ghidra (>= 10.1): [Demo w/ GEF](https://youtu.be/MK7N7uQTUNY)
+- Ghidra (>= 11.3.1): [Demo w/ GEF](https://youtu.be/MK7N7uQTUNY)
 - [angr-management](https://github.com/angr/angr-management) (>= 9.0)
 
 ### Debuggers

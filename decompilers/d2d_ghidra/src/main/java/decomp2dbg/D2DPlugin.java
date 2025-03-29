@@ -32,8 +32,8 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.pcode.HighSymbol;
-import ghidra.program.util.ChangeManager;
 import ghidra.program.util.ProgramChangeRecord;
+import ghidra.program.util.ProgramEvent;
 import ghidra.util.Msg;
 import ghidra.util.task.ConsoleTaskMonitor;
 
@@ -125,8 +125,8 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		};
 
 		int option = JOptionPane.showConfirmDialog(null, message, "Login", JOptionPane.OK_CANCEL_OPTION);
-		String host = null;
-		int port = 0;
+		String host;
+		int port;
 		if (option == JOptionPane.OK_OPTION) {
 			host = hostField.getText();
 			try {
@@ -218,7 +218,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 			return funcInfo;
 		}
 		
-		ArrayList<HighSymbol> symbols = new ArrayList<HighSymbol>();
+		ArrayList<HighSymbol> symbols = new ArrayList<>();
 		Map<String, Object> regVars = new HashMap<>();
 		Map<String, Object> stackVars = new HashMap<>();
 		dec.getHighFunction().getLocalSymbolMap().getSymbols().forEachRemaining(symbols::add);
@@ -251,30 +251,30 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		// also look at:
 		// https://github.com/NationalSecurityAgency/ghidra/blob/master/Ghidra/Features/Base/src/main/java/ghidra/app/plugin/core/analysis/AutoAnalysisManager.java
 		
-		ArrayList<Integer> funcEvents = new ArrayList<>(Arrays.asList(
-			ChangeManager.DOCR_FUNCTION_CHANGED,
-			ChangeManager.DOCR_FUNCTION_BODY_CHANGED,
-			ChangeManager.DOCR_VARIABLE_REFERENCE_ADDED,
-			ChangeManager.DOCR_VARIABLE_REFERENCE_REMOVED
+		ArrayList<ProgramEvent> funcEvents = new ArrayList<>(Arrays.asList(
+			ProgramEvent.FUNCTION_CHANGED,
+			ProgramEvent.FUNCTION_BODY_CHANGED,
+			ProgramEvent.VARIABLE_REFERENCE_ADDED,
+			ProgramEvent.VARIABLE_REFERENCE_REMOVED
 		));
 
-		ArrayList<Integer> symDelEvents = new ArrayList<>(Arrays.asList(
-			ChangeManager.DOCR_SYMBOL_REMOVED	
+		ArrayList<ProgramEvent> symDelEvents = new ArrayList<>(Arrays.asList(
+			ProgramEvent.SYMBOL_REMOVED	
 		));
 		
-		ArrayList<Integer> symChgEvents = new ArrayList<>(Arrays.asList(
-			ChangeManager.DOCR_SYMBOL_ADDED,
-			ChangeManager.DOCR_SYMBOL_RENAMED,
-			ChangeManager.DOCR_SYMBOL_DATA_CHANGED
+		ArrayList<ProgramEvent> symChgEvents = new ArrayList<>(Arrays.asList(
+			ProgramEvent.SYMBOL_ADDED,
+			ProgramEvent.SYMBOL_RENAMED,
+			ProgramEvent.SYMBOL_DATA_CHANGED
 		));
 
-		ArrayList<Integer> typeEvents = new ArrayList<>(Arrays.asList(
-			ChangeManager.DOCR_DATA_TYPE_CHANGED,
-			ChangeManager.DOCR_DATA_TYPE_REPLACED,
-			ChangeManager.DOCR_DATA_TYPE_RENAMED,
-			ChangeManager.DOCR_DATA_TYPE_SETTING_CHANGED,
-			ChangeManager.DOCR_DATA_TYPE_MOVED,
-			ChangeManager.DOCR_DATA_TYPE_ADDED
+		ArrayList<ProgramEvent> typeEvents = new ArrayList<>(Arrays.asList(
+			ProgramEvent.DATA_TYPE_CHANGED,
+			ProgramEvent.DATA_TYPE_REPLACED,
+			ProgramEvent.DATA_TYPE_RENAMED,
+			ProgramEvent.DATA_TYPE_SETTING_CHANGED,
+			ProgramEvent.DATA_TYPE_MOVED,
+			ProgramEvent.DATA_TYPE_ADDED
 		));
 
 		for (DomainObjectChangeRecord record : ev) {
@@ -282,7 +282,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 			if( !(record instanceof ProgramChangeRecord) )
 				continue;
 			
-			int chgType = record.getEventType();
+			ProgramEvent chgType = (ProgramEvent) record.getEventType();
 			var pcr = (ProgramChangeRecord) record;
 			var obj = pcr.getObject();
 			var newVal = pcr.getNewValue();
@@ -336,11 +336,11 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 				/*
 				 * GlobalVar & Label
 				 */
-				else if(obj instanceof CodeSymbol) {
+				else if(obj instanceof CodeSymbol codeSymbol) {
 					if(this.gVarCache.isEmpty())
 						continue;
 					
-					var sym = (CodeSymbol) obj;
+					var sym = codeSymbol;
 					var newName = sym.getName();
 					var addr = sym.getAddress().getOffset();
 					
@@ -353,11 +353,11 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 				/*
 				 * Function Name
 				 */
-				else if(obj instanceof FunctionSymbol) {
+				else if(obj instanceof FunctionSymbol functionSymbol) {
 					if(this.funcSymCache.isEmpty())
 						continue;
 					
-					var sym = (FunctionSymbol) obj;
+					var sym = functionSymbol;
 					var newName = sym.getName();
 					var addr = sym.getAddress().getOffset();
 					

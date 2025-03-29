@@ -1,9 +1,9 @@
 name: Ghidra Extension Build
 
 env:
-  ghidra-url: https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_10.3.2_build/ghidra_10.3.2_PUBLIC_20230711.zip
-  ghidra-zip-filename: ghidra_10.3.2_PUBLIC.zip
-  ghidra-directory: ghidra_10.3.2_PUBLIC
+  ghidra-url: https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.3.1_build/ghidra_11.3.1_PUBLIC_20250219.zip
+  ghidra-zip-filename: ghidra_11.3.1_PUBLIC.zip
+  ghidra-directory: ghidra_11.3.1_PUBLIC
 
 on:
   workflow_run:
@@ -37,19 +37,19 @@ jobs:
         args: unzip -qq ${{ steps.download-ghidra.outputs.file-path }} -d .
     - uses: actions/setup-java@v1
       with:
-        java-version: '17.0.6'
+        java-version: '21'
 
     - name: Build extension
       uses: eskatos/gradle-command-action@v1
       with:
-        gradle-version: '7.3'
+        gradle-version: '8.5'
         build-root-directory: ${{ github.workspace }}/decompilers/d2d_ghidra/
         arguments: '-PGHIDRA_INSTALL_DIR=${{ github.workspace }}/${{ env.ghidra-directory }}'
 
     - name: Rename extension
       run: cd decompilers/d2d_ghidra/dist/ && mv *.zip d2d-ghidra-plugin.zip
     - name: Upload built extension
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: extension
         path: decompilers/d2d_ghidra/dist/d2d-ghidra-plugin.zip
@@ -61,7 +61,7 @@ jobs:
 
     steps:
     - name: Download built extension
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: extension
     - name: Upload To Github Release

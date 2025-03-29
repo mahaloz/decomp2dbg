@@ -9,13 +9,15 @@ import ghidra.app.decompiler.PrettyPrinter;
 import ghidra.app.util.bin.MemoryByteProvider;
 import ghidra.app.util.bin.format.elf.ElfException;
 import ghidra.app.util.bin.format.elf.ElfHeader;
+import ghidra.program.model.data.DataTypeComponent;
 import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.FunctionIterator;
 import ghidra.program.model.symbol.Symbol;
 import ghidra.program.model.symbol.SymbolType;
 import ghidra.util.Msg;
 
 public class D2DGhidraServerAPI {
-    private D2DGhidraServer server;
+    private final D2DGhidraServer server;
 	
 	public D2DGhidraServerAPI(D2DGhidraServer server) {
 		this.server = server;
@@ -48,7 +50,7 @@ public class D2DGhidraServerAPI {
 		
 		var rebasedAddr = this.server.plugin.rebaseAddr(addr, false);
 		var func = this.server.plugin.getNearestFunction(rebasedAddr);
-		var rebasedAddrLong = rebasedAddr.getOffset();
+		long rebasedAddrLong = rebasedAddr.getOffset();
 		
 		if(func == null) {
 			Msg.warn(server, "Failed to find a function by the address " + addr);
@@ -68,7 +70,7 @@ public class D2DGhidraServerAPI {
 	    resp.put("decompilation", decLines);
 		
 		PrettyPrinter pp = new PrettyPrinter(func, dec.getCCodeMarkup(), null);
-	    ArrayList<ClangLine> lines = pp.getLines();
+	    ArrayList<ClangLine> lines = (ArrayList<ClangLine>) pp.getLines();
 	    
 	    // locate the decompilation line
 	    Boolean lineFound = false;
@@ -119,7 +121,7 @@ public class D2DGhidraServerAPI {
 		Map<String, Object> resp = new HashMap<>();
 		var program = this.server.plugin.getCurrentProgram();
 		var fm = program.getFunctionManager();
-		var functions = fm.getFunctions(true);
+		FunctionIterator functions = fm.getFunctions(true);
 		for (Function func : functions) {
 		    if(func == null)
                 continue;
@@ -175,7 +177,7 @@ public class D2DGhidraServerAPI {
 			Map<String, Object> structInfo = new HashMap<>();
 			structInfo.put("name", struct.getName());
 			// Enumerate members
-			var members = struct.getComponents();
+			DataTypeComponent[] members = struct.getComponents();
 			// For unknown reasons, the API claims that some targets have structures with a crazy number of members (in the millions).
 			// This causes an infinite loop.
 			// May be caused by a bug in some other plugin, not sure.
@@ -262,7 +264,7 @@ public class D2DGhidraServerAPI {
 			Map<String, Object> unionInfo = new HashMap<>();
 			unionInfo.put("name", union.getName());
 			// Enumerate members
-			var members = union.getComponents();
+			DataTypeComponent[] members = union.getComponents();
 			ArrayList<Object> memberInfo = new ArrayList<>();
 			for (var member : members) {
 				Map<String, Object> memberData = new HashMap<>();
@@ -338,7 +340,7 @@ public class D2DGhidraServerAPI {
 
 		var program = this.server.plugin.getCurrentProgram();
 		var provider = new MemoryByteProvider(program.getMemory(), program.getMinAddress());
-		ElfHeader header = null;
+		ElfHeader header;
 		try {
 			header = new ElfHeader(provider, null);
 		}
