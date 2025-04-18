@@ -10,7 +10,6 @@
 import traceback
 import threading
 
-from PyQt5.QtCore import QObject
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout
 
 import idaapi, ida_idp, idc
@@ -164,7 +163,7 @@ class IDAActionHandler(idaapi.action_handler_t):
         return idaapi.AST_ENABLE_ALWAYS
 
 
-class Decomp2DBGPlugin(QObject, idaapi.plugin_t):
+class Decomp2DBGPlugin(idaapi.plugin_t):
     """Plugin entry point. Does most of the skinning magic."""
 
     flags = idaapi.PLUGIN_FIX
@@ -174,7 +173,6 @@ class Decomp2DBGPlugin(QObject, idaapi.plugin_t):
     wanted_hotkey = "Ctrl-Shift-D"
 
     def __init__(self, *args, **kwargs):
-        QObject.__init__(self, *args, **kwargs)
         idaapi.plugin_t.__init__(self)
         self.change_hook = IDBHooks()
 
