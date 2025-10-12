@@ -9,6 +9,7 @@
 
 import traceback
 import threading
+import re
 
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout
 
@@ -30,7 +31,8 @@ class IDBHooks(ida_idp.IDB_Hooks):
         ida_idp.IDB_Hooks.__init__(self)
 
     def renamed(self, ea, new_name, local_name):
-        if IDA_VERSION == "9.0":
+        major, minor = re.match(r"(\d+)\.(\d+)", IDA_VERSION).groups()
+        if (major, minor) >= (9, 0):
             if idc.is_member_id(ea) or idc.get_struc(ea) or idc.get_enum_name(ea):
                 return 0
         else:
