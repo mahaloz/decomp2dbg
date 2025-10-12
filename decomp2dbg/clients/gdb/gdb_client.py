@@ -191,6 +191,10 @@ class DecompilerCommand(gdb.Command):
             f = io.StringIO()
             with contextlib.redirect_stderr(f):
                 args = self.arg_parser.parse_args(raw_args)
+        except SystemExit:
+            err("Missing or invalid arguments.")
+            self.arg_parser.print_help()
+            return
         except (RuntimeError, RuntimeWarning):
             return
         except Exception as e:
