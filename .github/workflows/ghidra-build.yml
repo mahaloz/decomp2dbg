@@ -46,9 +46,7 @@ jobs:
         gradle-version: '8.5'
         build-root-directory: ${{ github.workspace }}/decompilers/d2d_ghidra/
         arguments: '-PGHIDRA_INSTALL_DIR=${{ github.workspace }}/${{ env.ghidra-directory }}'
-        wrapper-cache-enabled: false
-        dependencies-cache-enabled: false
-        configuration-cache-enabled: false
+        distributions-cache-enabled: false
 
     - name: Rename extension
       run: cd decompilers/d2d_ghidra/dist/ && mv *.zip d2d-ghidra-plugin.zip
