@@ -3,6 +3,7 @@
 build/*
 *.pyc
 *.gdb_history
+pyrightconfig.json
 decomp2dbg/decompilers
 decomp2dbg/d2d.py
 decompilers/*/.gradle/

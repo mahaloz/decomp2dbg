@@ -92,6 +92,12 @@ class DecompilerServer:
 
         return resp
 
+    def binary_path(self) -> str:
+        """
+        Get the filesystem path of the binary being decompiled.
+        """
+        return ""
+
     #
     # XMLRPC Server
     #
@@ -120,6 +126,7 @@ class DecompilerServer:
         server.register_function(self.global_vars)
         server.register_function(self.structs)
         server.register_function(self.breakpoints)
+        server.register_function(self.binary_path)
         server.register_function(self.ping)
         print("[+] Registered decompilation server!")
         while True:

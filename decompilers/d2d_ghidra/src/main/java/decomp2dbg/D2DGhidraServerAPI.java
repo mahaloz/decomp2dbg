@@ -332,6 +332,11 @@ public class D2DGhidraServerAPI {
 		return resp;
 	}
 
+	/// Get the filesystem path of the binary being decompiled.
+	public String binary_path() {
+		return this.server.plugin.getCurrentProgram().getExecutablePath();
+	}
+
 	public Map<String, Object> elf_info() {
 		if(!this.server.plugin.elfInfoCache.isEmpty())
 			return this.server.plugin.elfInfoCache;

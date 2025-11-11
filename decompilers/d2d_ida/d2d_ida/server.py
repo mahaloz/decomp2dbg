@@ -13,7 +13,15 @@ from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 import threading
 import functools
 
-import ida_hexrays, ida_funcs, idc, ida_pro, ida_lines, idaapi, idautils, ida_segment
+import ida_hexrays
+import ida_funcs
+import idc
+import ida_pro
+import ida_lines
+import idaapi
+import idautils
+import ida_segment
+import ida_nalt
 
 
 class RequestHandler(SimpleXMLRPCRequestHandler):
@@ -296,6 +304,13 @@ class IDADecompilerServer:
         resp = {}
         return resp
 
+    @execute_read
+    def binary_path(self) -> str:
+        """
+        Get the filesystem path of the binary being decompiled.
+        """
+        return ida_nalt.get_input_file_path()
+
     #
     # XMLRPC Server
     #
@@ -324,6 +339,7 @@ class IDADecompilerServer:
         server.register_function(self.global_vars)
         server.register_function(self.structs)
         server.register_function(self.breakpoints)
+        server.register_function(self.binary_path)
         server.register_function(self.ping)
         print("[+] Registered decompilation server!")
         while True:
