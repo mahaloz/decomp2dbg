@@ -13,7 +13,7 @@ public class D2DGhidraProcessorFactoryFactory implements RequestProcessorFactory
 	}
 
 	@Override
-	public RequestProcessorFactory getRequestProcessorFactory(Class aClass) 
+	public RequestProcessorFactory getRequestProcessorFactory(Class aClass)
 			throws XmlRpcException {
 		return factory;
 	}

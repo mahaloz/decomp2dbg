@@ -58,14 +58,14 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 	public Map<String, Object> unionCache;
 	public Map<String, Object> enumCache;
 	public Map<String, Object> elfInfoCache;
-	
+
 	public D2DPlugin(PluginTool tool) {
 		super(tool);
-		
+
 		// Add a d2d button to 'Tools' in GUI menu
 		configureD2DAction = this.createD2DMenuAction();
 		tool.addAction(configureD2DAction);
-		
+
 		// cache maps
 		decompileCache = new HashMap<>();
 		gVarCache = new HashMap<>();
@@ -77,7 +77,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		enumCache = new HashMap<>();
 		elfInfoCache = new HashMap<>();
 	}
-	
+
 	@Override
 	protected void programActivated(Program program) {
 		program.addListener(this);
@@ -87,7 +87,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 	protected void programDeactivated(Program program) {
 		program.removeListener(this);
 	}
-	
+
 	private DockingAction createD2DMenuAction() {
 		D2DPlugin plugin = this;
 		configureD2DAction = new DockingAction("decomp2dbg", getName()) {
@@ -96,7 +96,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 				plugin.configureD2DServer();
 			}
 		};
-		
+
 		configureD2DAction.setEnabled(true);
 		configureD2DAction.setMenuBarData(new MenuData(new String[] {"Tools", "Configure decomp2dbg..." }));
 		configureD2DAction.setKeyBindingData(new KeyBindingData(KeyStroke.getKeyStroke('D', Event.CTRL_MASK + Event.SHIFT_MASK)));
@@ -114,7 +114,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		this.enumCache.clear();
 		this.elfInfoCache.clear();
 	}
-	
+
 	private void configureD2DServer() {
 		Msg.info(this, "Configuring decomp2dbg...");
 		JTextField hostField = new JTextField("localhost");
@@ -135,11 +135,11 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 				JOptionPane.showMessageDialog(null, "Unable to parse port: " + e.toString());
 				return;
 			}
-		} else 
+		} else
 			return;
 
 		this.server = new D2DGhidraServer(host, port, this);
-		
+
 		try {
 			this.server.start_server();
 		} catch(Exception e) {
@@ -151,7 +151,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 
 		JOptionPane.showMessageDialog(null, "Sever configured and running!");
 	}
-	
+
 	/*
 	 * Decompiler Utils
 	 */
@@ -159,7 +159,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 	public Address strToAddr(String addrStr) {
 		return this.getCurrentProgram().getAddressFactory().getAddress(addrStr);
 	}
-	
+
 	public Address rebaseAddr(Integer addr, Boolean rebaseDown) {
 		var program = this.getCurrentProgram();
 		var base = (int) program.getImageBase().getOffset();
@@ -170,38 +170,38 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		else if(addr < base) {
 			rebasedAddr += base;
 		}
-		
+
 		return this.strToAddr(Integer.toHexString(rebasedAddr));
 	}
-	
+
 	public Function getNearestFunction(Address addr) {
 		if(addr == null) {
 			Msg.warn(this, "Failed to parse Addr string earlier, got null addr.");
 			return null;
 		}
-		
+
 		var program = this.getCurrentProgram();
 		var funcManager = program.getFunctionManager();
 		var func =  funcManager.getFunctionContaining(addr);
-		
+
 		return func;
 	}
-	
+
 	public DecompileResults decompileFunc(Function func) {
 		var cacheRes = this.decompileCache.get(func.getEntryPoint().getOffset());
-		if(cacheRes != null) 
-			return (DecompileResults) cacheRes; 
-		
+		if(cacheRes != null)
+			return (DecompileResults) cacheRes;
+
 		DecompInterface ifc = new DecompInterface();
 		ifc.setOptions(new DecompileOptions());
 		ifc.openProgram(this.getCurrentProgram());
 		DecompileResults res = ifc.decompileFunction(func, 10, new ConsoleTaskMonitor());
-		
+
 		// cache it!
 		this.decompileCache.put(func.getEntryPoint().getOffset(), res);
 		return res;
 	}
-	
+
 	public Map<String, Object> getFuncData(Integer addr) {
 		Map<String, Object> funcInfo = new HashMap<>();
 		funcInfo.put("stack_vars", new HashMap<>());
@@ -211,13 +211,13 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 			Msg.warn(server, "Failed to find a function by the address " + addr);
 			return funcInfo;
 		}
-		
+
 		var dec = this.decompileFunc(func);
 		if(dec == null) {
 			Msg.warn(server, "Failed to decompile function by the address " + addr);
 			return funcInfo;
 		}
-		
+
 		ArrayList<HighSymbol> symbols = new ArrayList<>();
 		Map<String, Object> regVars = new HashMap<>();
 		Map<String, Object> stackVars = new HashMap<>();
@@ -238,19 +238,19 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		}
 		funcInfo.put("stack_vars", stackVars);
 		funcInfo.put("reg_vars", regVars);
-		
+
 		return funcInfo;
 	}
-	
+
 	/*
 	 * Change Event Handler
 	 */
-	
+
 	@Override
 	public void domainObjectChanged(DomainObjectChangedEvent ev) {
 		// also look at:
 		// https://github.com/NationalSecurityAgency/ghidra/blob/master/Ghidra/Features/Base/src/main/java/ghidra/app/plugin/core/analysis/AutoAnalysisManager.java
-		
+
 		ArrayList<ProgramEvent> funcEvents = new ArrayList<>(Arrays.asList(
 			ProgramEvent.FUNCTION_CHANGED,
 			ProgramEvent.FUNCTION_BODY_CHANGED,
@@ -259,9 +259,9 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		));
 
 		ArrayList<ProgramEvent> symDelEvents = new ArrayList<>(Arrays.asList(
-			ProgramEvent.SYMBOL_REMOVED	
+			ProgramEvent.SYMBOL_REMOVED
 		));
-		
+
 		ArrayList<ProgramEvent> symChgEvents = new ArrayList<>(Arrays.asList(
 			ProgramEvent.SYMBOL_ADDED,
 			ProgramEvent.SYMBOL_RENAMED,
@@ -278,15 +278,15 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		));
 
 		for (DomainObjectChangeRecord record : ev) {
-			// only analyze changes to the current program 
+			// only analyze changes to the current program
 			if( !(record instanceof ProgramChangeRecord) )
 				continue;
-			
+
 			ProgramEvent chgType = (ProgramEvent) record.getEventType();
 			var pcr = (ProgramChangeRecord) record;
 			var obj = pcr.getObject();
 			var newVal = pcr.getNewValue();
-			
+
 			/*
 			 * Function Updates
 			 */
@@ -297,7 +297,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 				this.funcDataCache.put((int) funcAddr, null);
 				this.decompileCache.put(funcAddr, null);
 			}
-			
+
 			/*
 			* Type updated or created
 			*/
@@ -309,7 +309,7 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 				this.unionCache.clear();
 				this.enumCache.clear();
 			}
-			
+
 			/*
 			 * Symbol Removed (global variable)
 			 */
@@ -318,49 +318,49 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 				var rebasedAddrStr = "0x" + this.rebaseAddr((int) addr, true).toString();
 				this.gVarCache.remove(rebasedAddrStr);
 			}
-			
+
 			/*
 			 * Symbol Updated or Created
 			 */
 			else if (symChgEvents.contains(chgType)) {
 				if (obj == null && newVal != null)
 					obj = newVal;
-				
+
 				/*
 				 * Stack Variable
 				 */
 				if (obj instanceof VariableSymbolDB) {
 					continue;
 				}
-				
+
 				/*
 				 * GlobalVar & Label
 				 */
 				else if(obj instanceof CodeSymbol codeSymbol) {
 					if(this.gVarCache.isEmpty())
 						continue;
-					
+
 					var sym = codeSymbol;
 					var newName = sym.getName();
 					var addr = sym.getAddress().getOffset();
-					
+
 					Map<String, Object> varInfo = new HashMap<>();
 					varInfo.put("name", newName);
 					var rebasedAddr = this.rebaseAddr((int) addr, true);
 					this.gVarCache.put("0x" + rebasedAddr.toString(), varInfo);
 				}
-				
+
 				/*
 				 * Function Name
 				 */
 				else if(obj instanceof FunctionSymbol functionSymbol) {
 					if(this.funcSymCache.isEmpty())
 						continue;
-					
+
 					var sym = functionSymbol;
 					var newName = sym.getName();
 					var addr = sym.getAddress().getOffset();
-					
+
 					var func = this.getCurrentProgram().getFunctionManager().getFunction(addr);
 					if(func == null)
                         continue;
@@ -373,10 +373,10 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 				}
 				else
 					continue;
-				
+
 				this.decompileCache.clear();
 			}
 		}
 	}
-	
+
 }
