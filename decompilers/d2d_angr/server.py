@@ -155,7 +155,7 @@ class AngrDecompilerServer:
         Get the filesystem path of the binary being decompiled.
         """
         # Unimplemented.
-        return ""
+        return self._instance.project.loader.main_object.binary
 
 
     #
