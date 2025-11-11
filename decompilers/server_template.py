@@ -37,13 +37,13 @@ class DecompilerServer:
         """
         resp = {
             "args": {
-                0x0: {
+                "0x0": {
                     "name": "example_name",
                     "type": "some_type",
                 },
             },
             "stack_vars": {
-                0x10: {
+                "0x10": {
                     "name": "example_name",
                     "type": "some_type",
                 },
@@ -54,7 +54,7 @@ class DecompilerServer:
 
     def function_headers(self):
         resp = {
-            0xdeadbeef: {
+            "0xdeadbeef": {
                 "name": str,
                 "size": int
             },
@@ -64,7 +64,7 @@ class DecompilerServer:
 
     def global_vars(self):
         resp = {
-            0xdeadbeef: {
+            "0xdeadbeef": {
                 "name": str
             },
         }
@@ -86,8 +86,8 @@ class DecompilerServer:
 
     def breakpoints(self):
         resp = {
-            0xdeadbeef: bool,
-            0xdeadbeef+1: bool,
+            "0xdeadbeef": bool,
+            "0xdeadbef0": bool,
         }
 
         return resp
