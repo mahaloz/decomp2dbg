@@ -35,15 +35,18 @@ class DecompilerServer:
         Returns stack vars and func args
 
         """
+        # For maximum cooperation, you may use int(x, 0) in the client
+        # to convert the stringified number to an int, whatever
+        # base it is in.
         resp = {
             "args": {
-                "0x0": {
+                "0": {
                     "name": "example_name",
                     "type": "some_type",
                 },
             },
             "stack_vars": {
-                "0x10": {
+                "16": {
                     "name": "example_name",
                     "type": "some_type",
                 },
@@ -54,7 +57,8 @@ class DecompilerServer:
 
     def function_headers(self):
         resp = {
-            "0xdeadbeef": {
+            # 0xdeadbeef
+            "3735928559": {
                 "name": str,
                 "size": int
             },
@@ -64,7 +68,7 @@ class DecompilerServer:
 
     def global_vars(self):
         resp = {
-            "0xdeadbeef": {
+            "3735928559": {
                 "name": str
             },
         }
@@ -86,8 +90,8 @@ class DecompilerServer:
 
     def breakpoints(self):
         resp = {
-            "0xdeadbeef": bool,
-            "0xdeadbef0": bool,
+            "3735928559": bool,
+            "3735928560": bool,
         }
 
         return resp
