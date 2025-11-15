@@ -39,13 +39,14 @@ class DecompilerServer:
         # to convert the stringified number to an int, whatever
         # base it is in.
         resp = {
-            "args": {
-                "0": {
-                    "name": "example_name",
+            "reg_vars": {
+                "some_var_name": {
+                    "reg_name": "something_like_r12",
                     "type": "some_type",
                 },
             },
             "stack_vars": {
+                # here 16 is the stack variable's offset from RSP
                 "16": {
                     "name": "example_name",
                     "type": "some_type",

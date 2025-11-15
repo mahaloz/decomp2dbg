@@ -31,6 +31,7 @@ import ghidra.program.database.symbol.VariableSymbolDB;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Program;
+import ghidra.program.model.listing.StackFrame;
 import ghidra.program.model.pcode.HighSymbol;
 import ghidra.program.util.ProgramChangeRecord;
 import ghidra.program.util.ProgramEvent;
@@ -217,6 +218,9 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 			Msg.warn(server, "Failed to decompile function by the address " + addr);
 			return funcInfo;
 		}
+
+		StackFrame frame = func.getStackFrame();
+		int frameSize = frame.getFrameSize();
 		
 		ArrayList<HighSymbol> symbols = new ArrayList<>();
 		Map<String, Object> regVars = new HashMap<>();
@@ -227,7 +231,11 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 				Map<String, String> sv = new HashMap<>();
 				sv.put("name", sym.getName());
 				sv.put("type", sym.getDataType().toString());
-				stackVars.put(String.valueOf(sym.getStorage().getStackOffset()), sv);
+				// https://ghidra.re/ghidra_docs/api/ghidra/program/model/listing/StackFrame.html#getFrameSize()
+				// https://ghidra.re/ghidra_docs/api/ghidra/program/model/listing/VariableStorage.html#getStackOffset()
+				// Doesn't really specify offset from what, but testing shows it is from the bottom of the frame
+				// (near saved RIP). Thus we adjust to get the offset from RSP.
+				stackVars.put(String.valueOf(frameSize - sym.getStorage().getStackOffset()), sv);
 			}
 			else if(sym.getStorage().isRegisterStorage()) {
 				Map<String, String> rv = new HashMap<>();

@@ -192,8 +192,9 @@ class IDADecompilerServer:
 
             # stack variables
             if var.is_stk_var():
-                offset = cfunc.mba.stacksize - var.location.stkoff()
-                stack_vars[str(offset)] = {
+                # https://python.docs.hex-rays.com/ida_typeinf/index.html#ida_typeinf.argloc_t.stkoff
+                # Doesn't really specify what offset, but testing shows its from RSP.
+                stack_vars[str(var.location.stkoff())] = {
                     "name": var.name,
                     "type": str(var.type())
                 }

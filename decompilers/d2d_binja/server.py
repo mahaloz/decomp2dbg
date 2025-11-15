@@ -114,20 +114,12 @@ class BinjaDecompilerServer:
 
         func = funcs[0]
 
-        # get stack frame offset for x86
-        frame_offset = 0
-        if self.bv.arch.name == 'x86_64':
-            frame_offset -= self.bv.arch.address_size
-        elif self.bv.arch.name == 'x86':
-            # handle inconsistent stack frame offsets
-            current_frame = func.get_reg_value_at(addr, 'ebp')
-            if current_frame.type != EntryRegisterValue.type:
-                frame_offset = current_frame.value
-
         # get stack vars
         stack_vars = {}
         for stack_var in func.stack_layout:
-            offset = frame_offset - stack_var.storage
+            # https://api.binary.ninja/binaryninja.variable-module.html#corevariable
+            # Doesn't really specify, but the offset is from SP.
+            offset = stack_var.storage
             stack_vars[str(offset)] = {
                 "name": stack_var.name,
                 "type": str(stack_var.type)

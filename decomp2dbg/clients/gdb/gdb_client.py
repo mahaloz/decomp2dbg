@@ -104,27 +104,6 @@ class GDBDecompilerClient(DecompilerClient):
 
         return type_str
 
-    def _find_local_var_base_ptr(self):
-        if self._lvar_bptr is not None:
-            return self._lvar_bptr
-
-        candidates = ["$rbp", "$ebp", "$bp", "$fp"]
-        for candidate in candidates:
-            # the register must exist
-            try:
-                val = gdb.parse_and_eval(candidate)
-            except Exception:
-                continue
-
-            # the register must have a real value
-            try:
-                int(str(val), 16)
-            except Exception:
-                continue
-
-            self._lvar_bptr = candidate
-            return self._lvar_bptr
-
 
     def update_function_data(self, addr):
         func_data = self.function_data(addr)
@@ -149,29 +128,22 @@ class GDBDecompilerClient(DecompilerClient):
                     continue
 
         for offset, stack_var in stack_vars.items():
+            # The offset is from the stack pointer
             offset = abs(int(offset, 0))
             type_str = self._clean_type_str(stack_var['type'])
-            lvar_bptr = self._find_local_var_base_ptr()
-            if lvar_bptr == "$rbp":
-                offset -= 8
-            elif lvar_bptr == "$ebp":
-                offset -= 4
-
-            expr = f"""({type_str}*) ({lvar_bptr} - {offset})"""
             var_name = stack_var['name']
 
             try:
-                gdb.execute(f"set ${var_name} = " + expr)
+                gdb.execute(f"set ${var_name} = ({type_str}*) ($sp + {offset})")
                 type_unknown = False
             except Exception:
                 type_unknown = True
 
             if type_unknown:
                 try:
-                    gdb.execute(f"set ${var_name} = ($fp - {offset})")
+                    gdb.execute(f"set ${var_name} = ($sp + {offset})")
                 except Exception:
                     continue
-
 
 #
 # Command Interface
