@@ -102,6 +102,24 @@ class DecompilerServer:
         """
         return ""
 
+    def versions(self) -> dict[str, str]:
+        """
+        Get version information about the decompiler environment.
+        """
+        resp = {
+            # the name of the decompiler
+            "name": "ida",
+            # the version of the decompiler
+            "version": "9.2",
+            # the version of the runtime it uses
+            # (ghidra should set "java" instead of "python")
+            "python": "3.13.7",
+            # any decompiler-specific auxiliary stuff
+            "hexrays": "1337.42",
+        }
+        return resp
+        
+
     #
     # XMLRPC Server
     #
@@ -131,6 +149,7 @@ class DecompilerServer:
         server.register_function(self.structs)
         server.register_function(self.breakpoints)
         server.register_function(self.binary_path)
+        server.register_function(self.versions)
         server.register_function(self.ping)
         print("[+] Registered decompilation server!")
         while True:

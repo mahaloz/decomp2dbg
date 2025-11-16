@@ -1,4 +1,5 @@
 from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
+import sys
 
 from binaryninja import SymbolType, EntryRegisterValue
 from binaryninja.binaryview import BinaryDataNotification
@@ -217,6 +218,20 @@ class BinjaDecompilerServer:
         """
         return self.bv.file.filename
 
+    def versions(self) -> dict[str, str]:
+        """
+        Get version information about the decompiler environment.
+        """
+        resp = {
+            # the name of the decompiler
+            "name": "binaryninja",
+            # the version of the decompiler
+            "version": binaryninja.core_version(),
+            # the version of the runtime it uses
+            "python": sys.version,
+        }
+        return resp
+
     #
     # XMLRPC Server
     #
@@ -246,6 +261,7 @@ class BinjaDecompilerServer:
         server.register_function(self.structs)
         server.register_function(self.breakpoints)
         server.register_function(self.binary_path)
+        server.register_function(self.versions)
         server.register_function(self.ping)
         print("[+] Registered decompilation server!")
         while True:

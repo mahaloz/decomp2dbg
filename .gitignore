@@ -9,3 +9,5 @@ decomp2dbg/d2d.py
 decompilers/*/.gradle/
 decompilers/*/build/
 decompilers/*/dist/
+decompilers/d2d_ghidra/.project
+decompilers/d2d_ghidra/.settings/
