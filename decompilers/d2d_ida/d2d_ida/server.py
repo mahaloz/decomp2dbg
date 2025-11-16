@@ -22,6 +22,7 @@ import ida_lines
 import idaapi
 import idautils
 import ida_segment
+import ida_kernwin
 import ida_nalt
 
 
@@ -329,6 +330,20 @@ class IDADecompilerServer:
         }
         return resp
 
+    @execute_read
+    def focus_address(self, addr: int) -> bool:
+        """
+        Focus the given address in the GUI of the decompiler. If possible,
+        don't switch the window focus.
+
+        Returns:
+            True if successful, otherwise False
+        """
+        addr = self.rebase_addr(addr)
+        # https://python.docs.hex-rays.com/ida_kernwin/index.html#ida_kernwin.jumpto
+        # Using C++ api instead of idc one to avoid activating the IDA window
+        return ida_kernwin.jumpto(addr, -1, 0)
+
     #
     # XMLRPC Server
     #
@@ -359,6 +374,7 @@ class IDADecompilerServer:
         server.register_function(self.breakpoints)
         server.register_function(self.binary_path)
         server.register_function(self.versions)
+        server.register_function(self.focus_address)
         server.register_function(self.ping)
         print("[+] Registered decompilation server!")
         while True:

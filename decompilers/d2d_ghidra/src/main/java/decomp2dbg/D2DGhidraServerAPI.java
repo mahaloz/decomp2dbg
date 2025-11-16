@@ -347,6 +347,11 @@ public class D2DGhidraServerAPI {
 			return res;
 	}
 
+	/// Navigate to this address in the GUI.
+	public boolean focus_address(Integer addr) {
+		return this.server.plugin.focus_address(addr);
+  }
+
 	public Map<String, Object> elf_info() {
 		if(!this.server.plugin.elfInfoCache.isEmpty())
 			return this.server.plugin.elfInfoCache;

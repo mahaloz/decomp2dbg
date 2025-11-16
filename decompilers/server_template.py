@@ -119,6 +119,15 @@ class DecompilerServer:
         }
         return resp
         
+    def focus_address(self, addr: int) -> bool:
+        """
+        Focus the given address in the GUI of the decompiler. If possible,
+        don't switch the window focus.
+
+        Returns:
+            True if successful, otherwise False
+        """
+        return False
 
     #
     # XMLRPC Server
@@ -150,6 +159,7 @@ class DecompilerServer:
         server.register_function(self.breakpoints)
         server.register_function(self.binary_path)
         server.register_function(self.versions)
+        server.register_function(self.focus_address)
         server.register_function(self.ping)
         print("[+] Registered decompilation server!")
         while True:

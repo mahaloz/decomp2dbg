@@ -19,6 +19,7 @@ import ghidra.app.decompiler.DecompileOptions;
 import ghidra.app.decompiler.DecompileResults;
 import ghidra.app.plugin.PluginCategoryNames;
 import ghidra.app.plugin.ProgramPlugin;
+import ghidra.app.services.GoToService;
 import ghidra.framework.model.DomainObjectChangeRecord;
 import ghidra.framework.model.DomainObjectChangedEvent;
 import ghidra.framework.model.DomainObjectListener;
@@ -34,6 +35,7 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.model.pcode.HighSymbol;
 import ghidra.program.util.ProgramChangeRecord;
 import ghidra.program.util.ProgramEvent;
+import ghidra.program.util.ProgramLocation;
 import ghidra.util.Msg;
 import ghidra.util.task.ConsoleTaskMonitor;
 
@@ -49,6 +51,7 @@ import ghidra.util.task.ConsoleTaskMonitor;
 public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 	private DockingAction configureD2DAction;
 	private D2DGhidraServer server;
+	private GoToService goToService;
 	public Map<Long, DecompileResults> decompileCache;
 	public Map<String, Object> gVarCache;
 	public Map<String, Object> funcSymCache;
@@ -65,7 +68,8 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		// Add a d2d button to 'Tools' in GUI menu
 		configureD2DAction = this.createD2DMenuAction();
 		tool.addAction(configureD2DAction);
-		
+		goToService = tool.getService(GoToService.class);
+
 		// cache maps
 		decompileCache = new HashMap<>();
 		gVarCache = new HashMap<>();
@@ -240,6 +244,26 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 		funcInfo.put("reg_vars", regVars);
 		
 		return funcInfo;
+	}
+
+	public boolean focus_address(Integer addr) {
+		if (this.goToService == null) {
+			this.goToService = tool.getService(GoToService.class);
+			if (this.goToService == null) {
+				return false;
+			}
+		}
+
+		var rebasedAddr = this.rebaseAddr(addr, false);
+
+		// This works but is insanely slow.
+		// // https://ghidra.re/ghidra_docs/api/ghidra/app/services/GoToService.html#goTo(ghidra.program.model.address.Address)
+		// And this is the fastest overload of .goTo()!
+		// https://github.com/NationalSecurityAgency/ghidra/blob/be482754a73ba9713d099565227b7f19d1f3e89c/Ghidra/Features/Base/src/main/java/ghidra/app/util/navigation/GoToServiceImpl.java#L52
+
+		Program prog = this.getCurrentProgram();
+		ProgramLocation loc = new ProgramLocation(prog, rebasedAddr);
+		return goToService.goTo(loc, prog);
 	}
 	
 	/*

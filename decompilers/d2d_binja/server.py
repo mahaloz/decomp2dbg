@@ -232,6 +232,19 @@ class BinjaDecompilerServer:
         }
         return resp
 
+    def focus_address(self, addr: int) -> bool:
+        """
+        Focus the given address in the GUI of the decompiler. If possible,
+        don't switch the window focus.
+
+        Returns:
+            True if successful, otherwise False
+        """
+        
+        addr = self._rebase_addr(addr)
+        self.bv.navigate(self.bv.view, addr)
+        return True
+
     #
     # XMLRPC Server
     #
@@ -262,6 +275,7 @@ class BinjaDecompilerServer:
         server.register_function(self.breakpoints)
         server.register_function(self.binary_path)
         server.register_function(self.versions)
+        server.register_function(self.focus_address)
         server.register_function(self.ping)
         print("[+] Registered decompilation server!")
         while True:
