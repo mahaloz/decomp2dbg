@@ -31,7 +31,6 @@ import ghidra.program.database.symbol.VariableSymbolDB;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Program;
-import ghidra.program.model.listing.StackFrame;
 import ghidra.program.model.pcode.HighSymbol;
 import ghidra.program.util.ProgramChangeRecord;
 import ghidra.program.util.ProgramEvent;
@@ -218,30 +217,29 @@ public class D2DPlugin extends ProgramPlugin implements DomainObjectListener {
 			Msg.warn(server, "Failed to decompile function by the address " + addr);
 			return funcInfo;
 		}
-
-		StackFrame frame = func.getStackFrame();
-		int frameSize = frame.getFrameSize();
 		
 		ArrayList<HighSymbol> symbols = new ArrayList<>();
-		Map<String, Object> regVars = new HashMap<>();
-		Map<String, Object> stackVars = new HashMap<>();
+		ArrayList<Object> regVars = new ArrayList<>();
+		ArrayList<Object> stackVars = new ArrayList<>();
 		dec.getHighFunction().getLocalSymbolMap().getSymbols().forEachRemaining(symbols::add);
 		for (HighSymbol sym: symbols) {
 			if(sym.getStorage().isStackStorage()) {
 				Map<String, String> sv = new HashMap<>();
 				sv.put("name", sym.getName());
 				sv.put("type", sym.getDataType().toString());
-				// https://ghidra.re/ghidra_docs/api/ghidra/program/model/listing/StackFrame.html#getFrameSize()
 				// https://ghidra.re/ghidra_docs/api/ghidra/program/model/listing/VariableStorage.html#getStackOffset()
 				// Doesn't really specify offset from what, but testing shows it is from the bottom of the frame
-				// (near saved RIP). Thus we adjust to get the offset from RSP.
-				stackVars.put(String.valueOf(frameSize - sym.getStorage().getStackOffset()), sv);
+				// (near saved RIP). The number is negative so we flip it.
+				sv.put("from_frame", String.valueOf(-sym.getStorage().getStackOffset()));
+				// FIXME: how to pass None for from_sp?
+				stackVars.add(sv);
 			}
 			else if(sym.getStorage().isRegisterStorage()) {
 				Map<String, String> rv = new HashMap<>();
-				rv.put("reg_name", sym.getStorage().getRegister().toString().toLowerCase());
+				rv.put("name", sym.getName());
 				rv.put("type", sym.getDataType().toString());
-				regVars.put(sym.getName(), rv);
+				rv.put("reg_name", sym.getStorage().getRegister().toString().toLowerCase());
+				regVars.add(rv);
 			}
 		}
 		funcInfo.put("stack_vars", stackVars);

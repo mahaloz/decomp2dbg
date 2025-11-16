@@ -107,23 +107,24 @@ class AngrDecompilerServer:
 
         """
         resp = {
-            "reg_vars": {},
-            "stack_vars": {}
+            "reg_vars": [],
+            "stack_vars": []
         }
 
-        # I don't know how to fix this to return offset from RSP.
-
-        # addr = self.rebase_addr(addr)
-        # func_addr = self._instance.cfg.get_any_node(addr, anyaddr=True).function_address
-        # func = self._instance.kb.functions[func_addr]
-        # decomp = self._decompile_function(func)
-        # manager = decomp.cfunc.variable_manager
-        # for var in manager._unified_variables:
-        #     if isinstance(var, angr.sim_variable.SimStackVariable):
-        #         resp["stack_vars"][str(var.offset)] = {
-        #             "name": var.name,
-        #             "type": manager.get_variable_type(var).c_repr()
-        #         }
+        addr = self.rebase_addr(addr)
+        func_addr = self._instance.cfg.get_any_node(addr, anyaddr=True).function_address
+        func = self._instance.kb.functions[func_addr]
+        decomp = self._decompile_function(func)
+        manager = decomp.cfunc.variable_manager
+        for var in manager._unified_variables:
+            if isinstance(var, angr.sim_variable.SimStackVariable):
+                resp["stack_vars"].append({
+                    "name": var.name,
+                    "type": manager.get_variable_type(var).c_repr(),
+                    # offset from frame base
+                    "from_frame": str(var.offset),
+                    "from_sp": None,
+                })
 
         return resp
 
