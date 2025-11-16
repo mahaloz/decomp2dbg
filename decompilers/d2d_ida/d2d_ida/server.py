@@ -312,6 +312,7 @@ class IDADecompilerServer:
         """
         return ida_nalt.get_input_file_path()
 
+    @execute_read
     def versions(self) -> dict[str, str]:
         """
         Get version information about the decompiler environment.
