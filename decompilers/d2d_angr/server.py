@@ -1,5 +1,6 @@
 from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 import os
+import sys
 
 import angr
 from angr.analyses.decompiler.structured_codegen import DummyStructuredCodeGenerator
@@ -163,6 +164,7 @@ class AngrDecompilerServer:
         return {
             "name": "angr",
             "version": angr.__version__,
+            "python": sys.version,
         }
 
 
