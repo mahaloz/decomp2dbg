@@ -124,6 +124,9 @@ class GDBDecompilerClient(DecompilerClient):
             match = re.search(r"frame at (0x[0-9a-fA-F]+):", frame_txt)
             if match:
                 frame_addr = int(match.group(1), 16)
+                if frame_addr == 0:
+                    # Happens sometimes at the binary entrypoint
+                    return None
                 # GDB for some reason returns one ptr past retaddr
                 return frame_addr - self._ptr_size()
             return None
@@ -179,7 +182,8 @@ class GDBDecompilerClient(DecompilerClient):
                         continue
             else:
                 if from_frame_str is None:
-                    raise ValueError("Both from_frame and from_sp are None, shouldn't be possible.")
+                    # Should never happen.
+                    continue
 
                 from_frame: int = int(from_frame_str, 0)
                 frame_addr: int | None = self._get_frame()
