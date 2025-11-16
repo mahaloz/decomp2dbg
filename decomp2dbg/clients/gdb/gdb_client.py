@@ -162,7 +162,7 @@ class GDBDecompilerClient(DecompilerClient):
 
             # We prefer from sp, because sp always exists while it may be
             # hard/unstable/impossible to find the frame
-            # We don't account for architectures where the stack goes in the =
+            # We don't account for architectures where the stack goes in the
             # different direction.
             if from_sp_str is not None:
                 from_sp: int = int(from_sp_str, 0)
