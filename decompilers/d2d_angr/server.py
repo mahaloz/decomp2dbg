@@ -160,8 +160,10 @@ class AngrDecompilerServer:
         """
         Get version information about the decompiler environment.
         """
-        resp = {}
-        return resp
+        return {
+            "name": "angr",
+            "version": angr.__version__,
+        }
 
 
     def focus_address(self, addr: int) -> bool:
@@ -172,7 +174,8 @@ class AngrDecompilerServer:
         Returns:
             True if successful, otherwise False
         """
-        return False
+        self._workspace.jump_to(self.rebase_addr(addr, down=True))
+        return True
 
     #
     # XMLRPC Server
