@@ -176,7 +176,7 @@ class AngrDecompilerServer:
         Returns:
             True if successful, otherwise False
         """
-        self._workspace.jump_to(self.rebase_addr(addr, down=True))
+        self._workspace.jump_to(self.rebase_addr(addr))
         return True
 
     #
