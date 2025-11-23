@@ -32,7 +32,8 @@ class IDBHooks(ida_idp.IDB_Hooks):
 
     def renamed(self, ea, new_name, local_name):
         major, minor = re.match(r"(\d+)\.(\d+)", IDA_VERSION).groups()
-        if (major, minor) >= (9, 0):
+        major_int, minor_int = int(major), int(minor)
+        if (major_int, minor_int) >= (9, 0):
             if idc.is_member_id(ea) or idc.get_struc(ea) or idc.get_enum_name(ea):
                 return 0
         else:
