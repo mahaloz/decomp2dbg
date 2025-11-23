@@ -211,7 +211,7 @@ class BinjaDecompilerServer:
         """
         Get the filesystem path of the binary being decompiled.
         """
-        return self.bv.file.filename
+        return self.bv.file.original_filename
 
     def versions(self) -> dict[str, str]:
         """
