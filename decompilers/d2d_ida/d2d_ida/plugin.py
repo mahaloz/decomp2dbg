@@ -30,15 +30,22 @@ class IDBHooks(ida_idp.IDB_Hooks):
     def __init__(self):
         ida_idp.IDB_Hooks.__init__(self)
 
-    def renamed(self, ea, new_name, local_name):
+    @staticmethod
+    def is_new_type_system():
         major, minor = re.match(r"(\d+)\.(\d+)", IDA_VERSION).groups()
-        if (major, minor) >= (9, 0):
-            if idc.is_member_id(ea) or idc.get_struc(ea) or idc.get_enum_name(ea):
-                return 0
-        else:
+        major, minor = int(major), int(minor)
+        return (major, minor) >= (8, 4)
+
+    def is_type_change_on_ea(self, ea):
+        if not self.is_new_type_system():
             import ida_struct, ida_enum
-            if ida_struct.is_member_id(ea) or ida_struct.get_struc(ea) or ida_enum.get_enum_name(ea):
-                return 0
+            return bool(ida_struct.is_member_id(ea) or ida_struct.get_struc(ea) or ida_enum.get_enum_name(ea))
+        else:
+            return True
+
+    def renamed(self, ea, new_name, local_name):
+        if self.is_type_change_on_ea(ea):
+            return 0
 
         # renaming a function header
         ida_func = idaapi.get_func(ea)
