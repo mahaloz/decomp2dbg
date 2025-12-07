@@ -5,6 +5,16 @@ from binaryninja import SymbolType, EntryRegisterValue
 from binaryninja.binaryview import BinaryDataNotification
 import binaryninja
 
+
+def rebase_addr(bv, addr: int, rebase_down: bool = False) -> int:
+    base = bv.start
+    rebased_addr = addr
+    if rebase_down:
+        rebased_addr -= base
+    elif addr < base:
+        rebased_addr += base
+    return rebased_addr
+
 #
 # Binja Hooks
 #
@@ -17,10 +27,11 @@ class DataNotification(BinaryDataNotification):
         self.server = server  # type: BinjaDecompilerServer
 
     def symbol_updated(self, view, sym):
+        sym_addr: str = str(rebase_addr(self.bv, sym.address, rebase_down=True))
         if sym.type == SymbolType.FunctionSymbol:
-            self.server.cache["function_headers"][str(sym.address)]["name"] = sym.name
+            self.server.cache["function_headers"][sym_addr]["name"] = sym.name
         elif sym.type == SymbolType.DataSymbol:
-            self.server.cache["global_vars"][str(sym.address)]["name"] = sym.name
+            self.server.cache["global_vars"][sym_addr]["name"] = sym.name
 
 #
 # Server Code
@@ -54,14 +65,6 @@ class BinjaDecompilerServer:
         notification = DataNotification(self.bv, self)
         self.bv.register_notification(notification)
 
-    def _rebase_addr(self, addr: int, rebase_down: bool = False):
-        base = self.bv.start
-        rebased_addr = addr
-        if rebase_down:
-            rebased_addr -= base
-        elif addr < base:
-            rebased_addr += base
-        return rebased_addr
 
     #
     # Public API
@@ -73,7 +76,7 @@ class BinjaDecompilerServer:
             "curr_line": None,
             "func_name": None
         }
-        addr = self._rebase_addr(addr)
+        addr = rebase_addr(self.bv, addr)
         funcs = self.bv.get_functions_containing(addr)
         if not funcs:
             return resp
@@ -108,7 +111,7 @@ class BinjaDecompilerServer:
             "stack_vars": []
         }
 
-        addr = self._rebase_addr(addr)
+        addr = rebase_addr(self.bv, addr)
         funcs = self.bv.get_functions_containing(addr)
         if not funcs:
             return resp
@@ -158,7 +161,7 @@ class BinjaDecompilerServer:
             if func.symbol.type != SymbolType.FunctionSymbol:
                 continue
 
-            resp[str(self._rebase_addr(func.start, True))] = {
+            resp[str(rebase_addr(self.bv, func.start, True))] = {
                 "name": func.name,
                 "size": func.total_bytes
             }
@@ -177,7 +180,7 @@ class BinjaDecompilerServer:
             sym = self.bv.get_symbol_at(addr)
             name = sym.name if sym else "data_{:x}".format(addr)
 
-            resp[str(self._rebase_addr(addr, True))] = {
+            resp[str(rebase_addr(self.bv, addr, True))] = {
                 "name": name
             }
 
@@ -236,7 +239,7 @@ class BinjaDecompilerServer:
             True if successful, otherwise False
         """
         
-        addr = self._rebase_addr(addr)
+        addr = rebase_addr(self.bv, addr)
         self.bv.navigate(self.bv.view, addr)
         return True
 

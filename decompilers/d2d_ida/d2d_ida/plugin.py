@@ -48,15 +48,20 @@ class IDBHooks(ida_idp.IDB_Hooks):
         if self.is_type_change_on_ea(ea):
             return 0
 
+        if decomp_server is None:
+            return 0
+
+        relative_ea: str = str(decomp_server.rebase_addr(ea, down=True))
+
         # renaming a function header
         ida_func = idaapi.get_func(ea)
         if ida_func and ida_func.start_ea == ea:
-            decomp_server.cache["function_headers"][str(ea)]["name"] = new_name
+            decomp_server.cache["function_headers"][relative_ea]["name"] = new_name
             return 0
 
         # assume we are renaming a global var of some sort
         try:
-            decomp_server.cache["global_vars"][str(ea)]["name"] = new_name
+            decomp_server.cache["global_vars"][relative_ea]["name"] = new_name
         except KeyError:
             # okay its not a global
             pass
