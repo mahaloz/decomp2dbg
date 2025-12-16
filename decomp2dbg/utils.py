@@ -36,6 +36,9 @@ class Color:
         "blink_off": "\033[25m",
     }
 
+    # Support NO_COLOR environment variable (https://no-color.org/)
+    _no_color = bool(os.environ.get("NO_COLOR"))
+
     @staticmethod
     def redify(msg: str) -> str:        return Color.colorify(msg, "red")
     @staticmethod
@@ -64,6 +67,9 @@ class Color:
     @staticmethod
     def colorify(text: str, attrs: str) -> str:
         """Color text according to the given attributes."""
+
+        if Color._no_color:
+            return str(text)
 
         colors = Color.colors
         msg = [colors[attr] for attr in attrs.split() if attr in colors]
