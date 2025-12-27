@@ -254,9 +254,9 @@ class DecompilerCommand(gdb.Command):
     def _init_arg_parser():
         parser = argparse.ArgumentParser(epilog="""
         Example runs:
-        decompiler connect ida 
-        decompiler connect ghidra --host 192.168.1.2 
-        decompiler connect ida --base-addr-start 0x00007ffff7452000 --base-addr-end 0x00007ffff766d000 
+        `decompiler connect ida` |
+        `decompiler connect ghidra --host 192.168.1.2` |
+        `decompiler connect ida --base-addr-start 0x00007ffff7452000 --base-addr-end 0x00007ffff766d000`
         """)
         commands = ["connect", "disconnect", "info"]
         parser.add_argument(
