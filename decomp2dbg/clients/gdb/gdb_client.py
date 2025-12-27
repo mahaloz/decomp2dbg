@@ -208,24 +208,7 @@ class GDBDecompilerClient(DecompilerClient):
 #
 
 class DecompilerCommand(gdb.Command):
-    """Connect to and control decompilers from GDB.
-
-    Usage: decompiler <command> [arguments]
-
-    Commands:
-      connect <name> [--host HOST] [--port PORT]
-                              Connect to a decompiler server
-      disconnect <name>       Disconnect from a decompiler
-      info                    Display connection information
-
-    Examples:
-      decompiler connect ida
-      decompiler connect ghidra --host 10.211.55.2 --port 3662
-      decompiler info
-      decompiler disconnect ida
-
-    For detailed help: decompiler --help
-    """
+    """Connect to and control decompilers from GDB"""
 
     def __init__(self, decompiler, gdb_client):
         super(DecompilerCommand, self).__init__("decompiler", gdb.COMMAND_USER)
@@ -269,7 +252,12 @@ class DecompilerCommand(gdb.Command):
 
     @staticmethod
     def _init_arg_parser():
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(epilog="""
+        Example runs:
+        decompiler connect ida 
+        decompiler connect ghidra --host 192.168.1.2 
+        decompiler connect ida --base-addr-start 0x00007ffff7452000 --base-addr-end 0x00007ffff766d000 
+        """)
         commands = ["connect", "disconnect", "info"]
         parser.add_argument(
             'command', type=str, choices=commands, help="""
