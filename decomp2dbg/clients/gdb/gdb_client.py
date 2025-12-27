@@ -236,8 +236,8 @@ class DecompilerCommand(gdb.Command):
     def invoke(self, arg, from_tty):
         raw_args = arg.split()
 
-        # Handle help requests (--help, -h) or show usage when no args provided
-        if not raw_args or '--help' in raw_args or '-h' in raw_args:
+        # Handle help requests (--help, -h, help) or show usage when no args provided
+        if not raw_args or '--help' in raw_args or '-h' in raw_args or 'help' in raw_args:
             self.arg_parser.print_help()
             return
 
