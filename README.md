@@ -65,7 +65,7 @@ cp -r ./decompilers/d2d_ida/* /path/to/ida/plugins/
 If you also need to install the gdb side of things, use the line below: 
 ```bash
 pip3 install . && \
-cp d2d.py ~/.d2d.py && echo "source ~/.d2d.py" >> ~/.gdbinit
+cp d2d_client.py ~/.d2d_client.py && echo "source ~/.d2d.py" >> ~/.gdbinit
 ```
 
 ## Usage 
