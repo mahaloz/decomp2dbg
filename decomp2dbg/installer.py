@@ -1,3 +1,4 @@
+import shutil
 import textwrap
 from pathlib import Path
 
@@ -12,8 +13,7 @@ class D2dInstaller(LibBSPluginInstaller):
             raise RuntimeError("Failed to find decomp2dbg package files! Please reinstall or file an issue.")
 
         self.pkg_path = pkg_files
-        self.server_stubs_path = pkg_files / "server" / "stubs"
-        self.d2d_server_path = pkg_files / "d2d_server.py"
+        self.stub_files = pkg_files / "server" / "stubs"
 
     def display_prologue(self):
         print(textwrap.dedent("""
@@ -26,6 +26,12 @@ class D2dInstaller(LibBSPluginInstaller):
                                       /_/                     /____/
         The Decompiler to Debugger Bridge
         """))
+
+    def _copy_plugin_to_path(self, path):
+        """Copy the d2d_server.py plugin file to the given path."""
+        src = self.pkg_path / "d2d_server.py"
+        dst = Path(path) / src.name
+        self.link_or_copy(src, dst, symlink=True)
 
     def install_gdb(self, path=None, interactive=True):
         path = super().install_gdb(path=None)
@@ -47,95 +53,48 @@ class D2dInstaller(LibBSPluginInstaller):
         return path
 
     def install_ida(self, path=None, interactive=True):
-        ida_plugin_path = super().install_ida(path=path)
-        if ida_plugin_path is None:
+        path = super().install_ida(path=path, interactive=interactive)
+        if not path:
             return None
 
-        # Copy the unified d2d_server.py to IDA plugins
-        dst_path = ida_plugin_path / "d2d_server.py"
-        self.link_or_copy(self.d2d_server_path, dst_path)
-        return dst_path
-
-    def install_angr(self, path=None, interactive=True):
-        angr_plugin_path = super().install_angr(path=path)
-        if angr_plugin_path is None:
-            return None
-
-        # For angr, we create a small wrapper that imports the plugin
-        dst_dir = angr_plugin_path / "d2d_angr"
-        dst_dir.mkdir(exist_ok=True)
-
-        # Create __init__.py that imports and exposes the plugin
-        init_content = '''"""decomp2dbg angr-management plugin."""
-from decomp2dbg.d2d_server import start_server
-
-from angrmanagement.plugins import BasePlugin
-
-
-class Decomp2DbgPlugin(BasePlugin):
-    """decomp2dbg plugin for angr-management."""
-
-    def __init__(self, workspace):
-        super().__init__(workspace)
-
-    MENU_BUTTONS = ('Configure decomp2dbg...', )
-
-    def handle_click_menu(self, idx):
-        if idx == 0:
-            start_server()
-'''
-        init_path = dst_dir / "__init__.py"
-        with open(init_path, "w") as f:
-            f.write(init_content)
-
-        return dst_dir
+        self._copy_plugin_to_path(path)
+        return path
 
     def install_ghidra(self, path=None, interactive=True):
-        ghidra_path = super().install_ghidra(path=path)
-        if ghidra_path is None:
+        path = super().install_ghidra(path=path, interactive=interactive)
+        if not path:
             return None
 
-        # Copy the unified d2d_server.py to Ghidra scripts
-        dst_path = ghidra_path / "d2d_server.py"
-        self.link_or_copy(self.d2d_server_path, dst_path)
-
-        print(textwrap.dedent("""
-        [*] Ghidra plugin installed!
-
-        IMPORTANT: Ghidra support requires pyhidra.
-
-        To use decomp2dbg with Ghidra:
-        1. Install pyhidra: pip install pyhidra
-        2. Install pyhidra into Ghidra (see: https://github.com/dod-cyber-crime-center/pyhidra)
-        3. In Ghidra, run the 'd2d_server.py' script from the Script Manager
-           (or use Tools > decomp2dbg > Start Server)
-        4. Connect from GDB: decompiler connect
-        """))
-
-        return dst_path
+        self._copy_plugin_to_path(path)
+        return path
 
     def install_binja(self, path=None, interactive=True):
-        binja_plugin_path = super().install_binja(path=path)
-        if binja_plugin_path is None:
+        path = super().install_binja(path=path, interactive=interactive)
+        if not path:
             return None
 
-        # Create d2d_binja directory
-        dst_dir = binja_plugin_path / "d2d_binja"
-        dst_dir.mkdir(exist_ok=True)
+        # Binja requires a folder for the plugin
+        d2d_binja_dir = path / "d2d_binja"
+        if d2d_binja_dir.exists():
+            shutil.rmtree(d2d_binja_dir)
+        d2d_binja_dir.mkdir()
 
-        # Copy the unified d2d_server.py
-        dst_server = dst_dir / "__init__.py"
-        # Create a wrapper that imports the plugin
-        init_content = '''"""decomp2dbg Binary Ninja plugin."""
-from decomp2dbg.d2d_server import create_plugin
-create_plugin()
-'''
-        with open(dst_server, "w") as f:
-            f.write(init_content)
+        # Copy things to the new folder
+        self.link_or_copy(self.stub_files / "__init__.py", d2d_binja_dir / "__init__.py", symlink=True)
+        self.link_or_copy(self.stub_files / "plugin.json", d2d_binja_dir / "plugin.json")
+        return path
 
-        # Copy plugin.json
-        src_json = self.server_stubs_path / "plugin.json"
-        dst_json = dst_dir / "plugin.json"
-        self.link_or_copy(src_json, dst_json)
+    def install_angr(self, path=None, interactive=True):
+        path = super().install_angr(path=path, interactive=interactive)
+        if not path:
+            return None
 
-        return dst_dir
+        # angr requires a folder for the plugin
+        d2d_angr_dir = path / "d2d_angr"
+        if d2d_angr_dir.exists():
+            shutil.rmtree(d2d_angr_dir)
+        d2d_angr_dir.mkdir()
+
+        # Copy things to the new folder
+        self.link_or_copy(self.stub_files / "__init__.py", d2d_angr_dir / "__init__.py", symlink=True)
+        return path
