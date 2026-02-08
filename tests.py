@@ -37,7 +37,7 @@ from libbs.decompilers import GHIDRA_DECOMPILER, IDA_DECOMPILER
 
 from decomp2dbg.server import LibBSDecompilerServer
 
-REPO_ROOT = Path(__file__).parent.parent
+REPO_ROOT = Path(__file__).resolve().parent
 FAUXWARE_PATH = REPO_ROOT / "testing" / "binaries" / "fauxware"
 D2D_CLIENT_PATH = REPO_ROOT / "decomp2dbg" / "d2d_client.py"
 
