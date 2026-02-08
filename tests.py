@@ -137,10 +137,18 @@ class _DecompilerTestBase(unittest.TestCase):
 
         Returns the combined stdout+stderr output.
         """
+        # GDB uses the system Python, which may not have decomp2dbg installed.
+        # Prepend sys.path with the repo root so GDB can find the package.
+        preamble = textwrap.dedent(f"""\
+            python
+            import sys
+            sys.path.insert(0, "{REPO_ROOT}")
+            end
+        """)
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".gdb", delete=False
         ) as f:
-            f.write(gdb_commands)
+            f.write(preamble + gdb_commands)
             script_path = f.name
 
         try:

@@ -29,6 +29,12 @@ jobs:
         pip install -e .
         pip install pytest
 
+    - name: Install deps for GDB's system Python
+      run: |
+        # GDB links against the system Python, not setup-python's Python.
+        # Install decomp2dbg deps so GDB can import them at runtime.
+        /usr/bin/python3 -m pip install --break-system-packages -e .
+
     - name: Set up Java 21
       uses: actions/setup-java@v4
       with:
