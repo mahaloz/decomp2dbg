@@ -51,7 +51,8 @@ class DecompilationCache:
             if addrs is None:
                 continue
             for addr in addrs:
-                self._addr_to_line[addr] = (func_addr, line_num)
+                # Coerce to native Python int to avoid Java JInt from Ghidra/pyghidra
+                self._addr_to_line[int(addr)] = (int(func_addr), int(line_num))
 
     def get_line_for_addr(self, addr: int) -> Optional[Tuple[int, int]]:
         """Get (func_addr, line_num) for a given address, or None if not cached."""
@@ -186,18 +187,26 @@ class LibBSDecompilerServer:
 
     def rebase_addr(self, addr: int, down: bool = False) -> int:
         """
-        Rebase an address relative to the binary base.
+        Convert between GDB client addresses and decompiler-internal addresses
+        using the libbs art_lifter for correct cross-decompiler support.
 
         Args:
-            addr: The address to rebase.
-            down: If True, subtract base (for sending to client).
-                  If False, add base if addr is below base (for receiving from client).
+            addr: The address to convert.
+            down: If True, convert decompiler-internal -> GDB offset (for sending to client).
+                  If False, convert GDB address -> decompiler-internal (for receiving from client).
         """
         if down:
-            return addr - self.base_addr
-        elif addr < self.base_addr:
-            return addr + self.base_addr
-        return addr
+            # decompiler-internal -> absolute -> offset from binary base
+            abs_addr = self.deci.art_lifter.lower_addr(addr)
+            return abs_addr - self.base_addr
+        else:
+            # GDB address -> decompiler-internal
+            # If addr < base_addr, treat as PIE offset and add base to get absolute
+            if addr < self.base_addr:
+                abs_addr = addr + self.base_addr
+            else:
+                abs_addr = addr
+            return self.deci.art_lifter.lift_addr(abs_addr)
 
     #
     # Public XML-RPC API
@@ -228,11 +237,11 @@ class LibBSDecompilerServer:
             if cached_decomp:
                 lines = cached_decomp.text.split('\n') if cached_decomp.text else None
                 resp["decompilation"] = lines
-                resp["curr_line"] = line_num
+                resp["curr_line"] = int(line_num)
                 # Get function name
                 try:
                     func = self.deci.fast_get_function(func_addr)
-                    resp["func_name"] = func.name if func else None
+                    resp["func_name"] = str(func.name) if func else None
                 except (NotImplementedError, Exception):
                     pass
                 return resp
@@ -255,24 +264,27 @@ class LibBSDecompilerServer:
         resp["decompilation"] = lines
 
         # Find current line from line_map
+        # Note: coerce to int() to avoid Java JInt objects from Ghidra/pyghidra
+        # leaking into the XML-RPC response (which cannot marshal them).
         if decomp.line_map:
             for line_num, addrs in decomp.line_map.items():
                 if addrs and addr in addrs:
-                    resp["curr_line"] = line_num
+                    resp["curr_line"] = int(line_num)
                     break
             else:
                 # Address not found directly, find closest
-                resp["curr_line"] = self._find_closest_line(addr, decomp.line_map)
+                closest = self._find_closest_line(addr, decomp.line_map)
+                resp["curr_line"] = int(closest) if closest is not None else None
 
         # Get function name
         try:
             func = self.deci.fast_get_function(decomp.addr)
-            resp["func_name"] = func.name if func else None
+            resp["func_name"] = str(func.name) if func else None
         except (NotImplementedError, Exception):
             # Fallback: try to get from functions dict
             try:
                 func = self.deci.functions.get(decomp.addr)
-                resp["func_name"] = func.name if func else None
+                resp["func_name"] = str(func.name) if func else None
             except Exception:
                 pass
 
@@ -287,10 +299,10 @@ class LibBSDecompilerServer:
             if not addrs:
                 continue
             for addr in addrs:
-                distance = abs(addr - target_addr)
+                distance = abs(int(addr) - int(target_addr))
                 if distance < best_distance:
                     best_distance = distance
-                    best_line = line_num
+                    best_line = int(line_num)
 
         return best_line
 
@@ -320,12 +332,14 @@ class LibBSDecompilerServer:
                 return resp
 
             # Get stack variables
+            # Note: coerce all values to native Python types to avoid Java objects
+            # from Ghidra/pyghidra leaking into the XML-RPC response.
             for offset, svar in func.stack_vars.items():
                 stack_var_info = {
-                    "name": svar.name,
-                    "type": svar.type or "",
+                    "name": str(svar.name) if svar.name else "",
+                    "type": str(svar.type) if svar.type else "",
                     "from_sp": None,
-                    "from_frame": str(abs(offset)) if offset is not None else None,
+                    "from_frame": str(abs(int(offset))) if offset is not None else None,
                 }
                 resp["stack_vars"].append(stack_var_info)
 
@@ -333,9 +347,9 @@ class LibBSDecompilerServer:
             if func.header and func.header.args:
                 for arg_offset, arg in func.header.args.items():
                     reg_var_info = {
-                        "name": arg.name,
-                        "type": arg.type or "",
-                        "reg_name": f"arg{arg_offset}",  # Generic name since we don't have reg info
+                        "name": str(arg.name) if arg.name else "",
+                        "type": str(arg.type) if arg.type else "",
+                        "reg_name": f"arg{int(arg_offset)}",
                     }
                     resp["reg_vars"].append(reg_var_info)
 
@@ -361,17 +375,18 @@ class LibBSDecompilerServer:
             for addr, func in self.deci.functions.items():
                 # Skip library functions if possible
                 name = func.name
-                if not name or not isinstance(name, str):
+                if not name:
                     continue
 
+                name = str(name)
                 # Skip PLT/GOT functions
                 if name.startswith(".") or "@" in name:
                     continue
 
-                rebased_addr = str(self.rebase_addr(addr, down=True))
+                rebased_addr = str(int(self.rebase_addr(addr, down=True)))
                 resp[rebased_addr] = {
                     "name": name,
-                    "size": func.size or 0
+                    "size": int(func.size) if func.size else 0
                 }
         except Exception as e:
             print(f"[decomp2dbg] function_headers failed: {e}")
@@ -397,9 +412,9 @@ class LibBSDecompilerServer:
                 if not name:
                     continue
 
-                rebased_addr = str(self.rebase_addr(addr, down=True))
+                rebased_addr = str(int(self.rebase_addr(addr, down=True)))
                 resp[rebased_addr] = {
-                    "name": name
+                    "name": str(name)
                 }
         except Exception as e:
             print(f"[decomp2dbg] global_vars failed: {e}")
@@ -423,21 +438,21 @@ class LibBSDecompilerServer:
         try:
             for name, struct in self.deci.structs.items():
                 struct_info = {
-                    "name": name,
+                    "name": str(name),
                     "members": []
                 }
 
                 if struct.members:
                     for offset, member in struct.members.items():
                         member_info = {
-                            "name": member.name,
-                            "type": member.type or "",
-                            "size": member.size or 0,
-                            "offset": offset
+                            "name": str(member.name) if member.name else "",
+                            "type": str(member.type) if member.type else "",
+                            "size": int(member.size) if member.size else 0,
+                            "offset": int(offset)
                         }
                         struct_info["members"].append(member_info)
 
-                resp[name] = struct_info
+                resp[str(name)] = struct_info
         except Exception as e:
             print(f"[decomp2dbg] structs failed: {e}")
 
