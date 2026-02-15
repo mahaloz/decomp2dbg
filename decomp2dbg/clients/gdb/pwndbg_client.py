@@ -52,7 +52,7 @@ class PwndbgDecompilerPane(DecompilerPane):
                     break
         return output
 
-    def context_gdecompiler(self, target=sys.stdout, with_banner=True, width=None):
+    def context_gdecompiler(self, target=sys.stdout, with_banner=True, width=None, **kwargs):
         failed = True
         try:
             # triggers an update as well
