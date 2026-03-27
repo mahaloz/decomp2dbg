@@ -38,8 +38,9 @@ def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT):
 def _ask_and_start_server(*args, deci=None, **kwargs):
     """Menu action callback: ask user for host:port and start the server."""
     result = deci.gui_ask_for_string(
-        "Host and port to start server on (default: localhost:3662)",
-        title="Starting decomp2dbg server",
+        "Server Host:Port",
+        title="Starting decomp2dbg server on host and port",
+        default="localhost:3662"
     )
 
     if not result:
