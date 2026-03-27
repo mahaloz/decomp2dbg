@@ -62,7 +62,7 @@ def _ask_and_start_server(*args, deci=None, **kwargs):
     start_server(host=host, port=port)
 
 
-def create_plugin(*args, **kwargs):
+def create_plugin(*args, open_dialog_immediately=False, **kwargs):
     """Plugin entry point for all decompilers."""
     from libbs.api import DecompilerInterface
 
@@ -73,12 +73,15 @@ def create_plugin(*args, **kwargs):
         gui_init_kwargs=kwargs,
     )
 
-    deci.gui_register_ctx_menu(
-        "Startdecomp2dbgServer",
-        "Start decomp2dbg server",
-        _ask_and_start_server,
-        category="decomp2dbg",
-    )
+    if open_dialog_immediately:
+        _ask_and_start_server(deci=deci)
+    else:
+        deci.gui_register_ctx_menu(
+            "Startdecomp2dbgServer",
+            "Start decomp2dbg server",
+            _ask_and_start_server,
+            category="decomp2dbg",
+        )
 
     return deci.gui_plugin
 
@@ -86,44 +89,35 @@ def create_plugin(*args, **kwargs):
 # =============================================================================
 # LibBS generic plugin loader
 # =============================================================================
+try:
+    import idaapi
+    has_ida = True
+except ImportError:
+    has_ida = False
+try:
+    import angrmanagement
+    has_angr = True
+except ImportError:
+    has_angr = False
+try:
+    import ghidra
+    has_ghidra = True
+except ImportError:
+    has_ghidra = False
 
-import sys
+if not has_ida and not has_angr:
+    create_plugin(open_dialog_immediately=has_ghidra)
+elif has_angr:
+    from angrmanagement.plugins import BasePlugin
 
-if sys.version[0] == "2":
-    import subprocess
-    from libbs_vendored.ghidra_bridge_server import GhidraBridgeServer
+    class AngrBSPluginThunk(BasePlugin):
+        def __init__(self, workspace):
+            super().__init__(workspace)
+            globals()["workspace"] = workspace
+            self.plugin = create_plugin()
 
-    GhidraBridgeServer.run_server(background=True)
-    process = subprocess.Popen("decomp2dbg --run".split(" "))
-    if process.poll() is not None:
-        raise RuntimeError(
-            "Failed to run the Python3 backend. It's likely Python3 (and its scripts) is not in your Path inside Ghidra."
-        )
-else:
-    try:
-        import idaapi
-        has_ida = True
-    except ImportError:
-        has_ida = False
-    try:
-        import angrmanagement
-        has_angr = True
-    except ImportError:
-        has_angr = False
-
-    if not has_ida and not has_angr:
-        create_plugin()
-    elif has_angr:
-        from angrmanagement.plugins import BasePlugin
-
-        class AngrBSPluginThunk(BasePlugin):
-            def __init__(self, workspace):
-                super().__init__(workspace)
-                globals()["workspace"] = workspace
-                self.plugin = create_plugin()
-
-            def teardown(self):
-                pass
+        def teardown(self):
+            pass
 
 
 def PLUGIN_ENTRY(*args, **kwargs):
