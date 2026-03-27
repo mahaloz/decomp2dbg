@@ -3,8 +3,8 @@
 	"name": "decomp2dbg",
 	"type": ["core"],
 	"api": ["python3"],
-	"description": "Adds support for Binary Ninja decompilation in your debugger, curently only supports GDB",
-	"longdescription": "decomp2dbg will host the decompilation and symbols present in your Binary Ninja View over an XMLRPC server which can bee hooked from within your debugger. As you change you decompilation, so will the debuggers view.",
+	"description": "Adds support for Binary Ninja decompilation in your debugger, currently only supports GDB",
+	"longdescription": "decomp2dbg will host the decompilation and symbols present in your Binary Ninja View over an XMLRPC server which can be hooked from within your debugger. As you change your decompilation, so will the debugger's view.",
 	"license": {
 		"name": "BSD 2-clause",
 		"text": ""
@@ -16,7 +16,7 @@
 		"Windows" : "Follow the README to install the debugger side of the plugin."
 	},
 	"dependencies": {
-		"pip": [],
+		"pip": ["libbs>=0.12.0"],
 		"apt": [],
 		"installers": [],
 		"other": []
