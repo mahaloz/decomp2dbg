@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "decomp2dbg"
+dynamic = ["version"]
+description = "Symbol syncing framework for decompilers and debuggers"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "BSD 2 Clause"}
+dependencies = [
+    "sortedcontainers",
+    "pyelftools",
+    "libbs[ghidra]>=3.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/mahaloz/decomp2dbg"
+
+[project.scripts]
+decomp2dbg = "decomp2dbg.__main__:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "decomp2dbg.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["decomp2dbg*"]

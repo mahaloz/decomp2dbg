@@ -10,7 +10,7 @@ the symbols and decompilation lines they recover in their decompiler.
 
 ![decomp2dbg](./assets/decomp2dbg.png)
 
-Interested in seeing what decomp2dbg looks like in practice? Checkout the recorded [talk at CactusCon 2023](https://youtu.be/-J8fGMt6UmE?t=22442), 
+Interested in seeing what decomp2dbg looks like in practice? Check out the recorded [talk at CactusCon 2023](https://youtu.be/-J8fGMt6UmE?t=22442), 
 featuring debugging a remote arm32 binary from a x64 machine with Ghidra symbols. 
 
 For active help, join the BinSync Discord below, where we answer decomp2dbg questions:
@@ -19,13 +19,13 @@ For active help, join the BinSync Discord below, where we answer decomp2dbg ques
 
 ## Supported Platforms
 ### Decompilers
-- IDA Pro (>= 7.0): [Demo w/ GEF](https://asciinema.org/a/442740)
+- IDA Pro (>= 9.0): [Demo w/ GEF](https://asciinema.org/a/442740)
 - Binary Ninja (>= 2.4): [Demo w/ GEF](https://t.co/M2IZd0fmi3)
-- Ghidra (>= 11.3.1): [Demo w/ GEF](https://youtu.be/MK7N7uQTUNY)
+- Ghidra (>= 12): [Demo w/ GEF](https://youtu.be/MK7N7uQTUNY)
 - [angr-management](https://github.com/angr/angr-management) (>= 9.0)
 
 ### Debuggers
-- gdb (works best with [GEF](https://github.com/hugsy/gef))
+- gdb
   - GEF
   - pwndbg
   - vanilla
@@ -36,9 +36,10 @@ Install through pip, then use the built-in installer for decompilers:
 pip3 install decomp2dbg && decomp2dbg --install 
 ```
 
-This will open a prompt where you be asked to input the path to your decompiler and debugger of choice. For Ghidra installs,
-you must follow the extra steps to enable extensions [here](https://github.com/mahaloz/decomp2dbg/tree/main/decompilers/d2d_ghidra/README.md).
+This will open a prompt where you be asked to input the path to your decompiler and debugger of choice. 
+For Ghidra, you will need to launch in PyGhidra mode, and enable the plugin (d2d_client.py), as shown [here](https://docs.binsync.net/decompilers/ghidra).
 If you installed the decompiler-side in the Binja Plugin Manager, you still need to install the debugger side with the above.
+Note: you must install `decomp2dbg` to the same Python enviornment as your decompiler and debugger.
 
 **Note**: You may need to allow inbound connections on port 3662, or the port you use, for decomp2dbg to connect
 to the decompiler. If you are installing decomp2dbg with GEF or pwndbg it's important that in your `~/.gdbinit` the
@@ -57,15 +58,19 @@ First, clone the repo:
 git clone https://github.com/mahaloz/decomp2dbg.git
 ```
 
-Copy all the files in `./decompilers/d2d_ida/` into your ida `plugins` folder:
+Install:
 ```bash
-cp -r ./decompilers/d2d_ida/* /path/to/ida/plugins/
+pip install .
+```
+
+Copy all the server file:
+```bash
+cp ./decomp2dbg/d2d_server.py /path/to/ida/plugins/
 ```
 
 If you also need to install the gdb side of things, use the line below: 
 ```bash
-pip3 install . && \
-cp d2d.py ~/.d2d.py && echo "source ~/.d2d.py" >> ~/.gdbinit
+cp ./decomp2dbg/d2d_client.py ~/.d2d.py && echo "source ~/.d2d.py" >> ~/.gdbinit
 ```
 
 ## Usage 
