@@ -2,20 +2,8 @@
 # @author mahaloz
 # @category decomp2dbg
 # @menupath Tools.decomp2dbg.Start Server
+# @keybinding ctrl shift d
 # @runtime PyGhidra
-
-"""
-Unified decomp2dbg server entry point.
-
-This file can be:
-1. Copied to IDA's plugins folder as d2d_server.py
-2. Copied to Binary Ninja's plugins folder as d2d_server.py
-3. Run as a Ghidra script via pyhidra
-4. Loaded in angr-management
-
-The script auto-detects which decompiler it's running in and starts
-the XML-RPC server appropriately.
-"""
 
 import threading
 
