@@ -12,7 +12,7 @@ license = {text = "BSD 2 Clause"}
 dependencies = [
     "sortedcontainers",
     "pyelftools",
-    "libbs[ghidra]>=3.3.0",
+    "libbs[ghidra]>=3.5.0",
 ]
 
 [project.urls]
