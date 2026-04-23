@@ -81,6 +81,7 @@ def create_plugin(*args, open_dialog_immediately=False, **kwargs):
             "Start decomp2dbg server",
             _ask_and_start_server,
             category="decomp2dbg",
+            shortcut="Ctrl+Shift+D",
         )
 
     return deci.gui_plugin
