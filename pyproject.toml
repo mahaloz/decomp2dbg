@@ -24,6 +24,9 @@ decomp2dbg = "decomp2dbg.__main__:main"
 [tool.setuptools]
 include-package-data = true
 
+[tool.setuptools.package-data]
+"decomp2dbg.server.stubs" = ["plugin.json"]
+
 [tool.setuptools.dynamic]
 version = {attr = "decomp2dbg.__version__"}
 
