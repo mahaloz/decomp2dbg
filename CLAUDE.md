@@ -48,6 +48,6 @@ When connected via `decompiler connect [host] [port]`:
 
 ## Dependencies
 
-- Core: `sortedcontainers`, `pyelftools`, `libbs>=0.12.0`
+- Core: `sortedcontainers`, `pyelftools`, `declib>=4.0.1`
 - External tools (Linux native symbols): `gcc`, `objcopy`
 - Environment: `NO_COLOR` env var disables terminal colors

@@ -16,12 +16,12 @@
 		"Windows" : "Follow the README to install the debugger side of the plugin."
 	},
 	"dependencies": {
-		"pip": ["libbs>=0.12.0"],
+		"pip": ["declib>=4.0.1"],
 		"apt": [],
 		"installers": [],
 		"other": []
 	},
-	"version": "3.11.0",
+	"version": "4.0.2",
 	"author": "Zion Basque (@mahaloz)",
 	"minimumbinaryninjaversion": 1200
 }

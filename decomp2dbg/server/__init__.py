@@ -4,9 +4,9 @@
 # Unified XML-RPC server for decompiler-debugger communication.
 #
 
-from decomp2dbg.server.server import LibBSDecompilerServer, DecompilationCache
+from decomp2dbg.server.server import DecLibDecompilerServer, DecompilationCache
 
-__all__ = ['LibBSDecompilerServer', 'DecompilationCache', 'start_server']
+__all__ = ['DecLibDecompilerServer', 'DecompilationCache', 'start_server']
 
 
 def start_server(host: str = "localhost", port: int = 3662):
@@ -22,7 +22,7 @@ def start_server(host: str = "localhost", port: int = 3662):
     """
     import threading
 
-    server = LibBSDecompilerServer(host=host, port=port)
+    server = DecLibDecompilerServer(host=host, port=port)
     t = threading.Thread(target=server.start_xmlrpc_server, daemon=True)
     t.start()
     print(f"[+] decomp2dbg server started on {host}:{port}")

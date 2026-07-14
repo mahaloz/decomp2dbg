@@ -9,10 +9,10 @@ SUPPORTED_DECOMPILERS = ("ghidra", "ida", "binja", "angr")
 
 def _run_server(binary_path: str, decompiler: str, host: str, port: int):
     """Start a headless decompiler server for the given binary."""
-    from libbs.api import DecompilerInterface
-    from libbs.decompilers import GHIDRA_DECOMPILER, IDA_DECOMPILER, BINJA_DECOMPILER, ANGR_DECOMPILER
+    from declib.api import DecompilerInterface
+    from declib.decompilers import GHIDRA_DECOMPILER, IDA_DECOMPILER, BINJA_DECOMPILER, ANGR_DECOMPILER
 
-    from decomp2dbg.server import LibBSDecompilerServer
+    from decomp2dbg.server import DecLibDecompilerServer
 
     decompiler_map = {
         "ghidra": GHIDRA_DECOMPILER,
@@ -33,7 +33,7 @@ def _run_server(binary_path: str, decompiler: str, host: str, port: int):
         project_name="d2d_server",
     )
 
-    server = LibBSDecompilerServer(deci=deci, host=host, port=port)
+    server = DecLibDecompilerServer(deci=deci, host=host, port=port)
     try:
         server.start_xmlrpc_server()
     except KeyboardInterrupt:

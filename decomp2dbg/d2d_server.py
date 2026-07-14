@@ -13,9 +13,9 @@ DEFAULT_PORT = 3662
 
 def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT):
     """Start the decomp2dbg XML-RPC server."""
-    from decomp2dbg.server import LibBSDecompilerServer
+    from decomp2dbg.server import DecLibDecompilerServer
 
-    server = LibBSDecompilerServer(host=host, port=port)
+    server = DecLibDecompilerServer(host=host, port=port)
     t = threading.Thread(target=server.start_xmlrpc_server, daemon=True)
     t.start()
     print(f"[+] decomp2dbg server started on {host}:{port}")
@@ -52,7 +52,7 @@ def _ask_and_start_server(*args, deci=None, **kwargs):
 
 def create_plugin(*args, open_dialog_immediately=False, **kwargs):
     """Plugin entry point for all decompilers."""
-    from libbs.api import DecompilerInterface
+    from declib.api import DecompilerInterface
 
     deci = DecompilerInterface.discover(
         plugin_name="decomp2dbg",
@@ -76,7 +76,7 @@ def create_plugin(*args, open_dialog_immediately=False, **kwargs):
 
 
 # =============================================================================
-# LibBS generic plugin loader
+# DecLib generic plugin loader
 # =============================================================================
 try:
     import idaapi
