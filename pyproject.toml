@@ -8,11 +8,11 @@ dynamic = ["version"]
 description = "Symbol syncing framework for decompilers and debuggers"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "BSD 2 Clause"}
+license = "BSD-2-Clause"
 dependencies = [
     "sortedcontainers",
     "pyelftools",
-    "libbs[ghidra]>=3.5.0",
+    "declib[ghidra]>=4.0.1",
 ]
 
 [project.urls]
