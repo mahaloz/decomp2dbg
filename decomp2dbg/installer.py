@@ -2,10 +2,10 @@ import shutil
 import textwrap
 from pathlib import Path
 
-from libbs.plugin_installer import LibBSPluginInstaller, PluginInstaller
+from declib.plugin_installer import DecLibPluginInstaller, PluginInstaller
 
 
-class D2dInstaller(LibBSPluginInstaller):
+class D2dInstaller(DecLibPluginInstaller):
     def __init__(self):
         super().__init__(targets=PluginInstaller.DECOMPILERS + PluginInstaller.DEBUGGERS)
         pkg_files = self.find_pkg_files("decomp2dbg")

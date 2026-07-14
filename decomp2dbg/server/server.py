@@ -5,9 +5,9 @@
 # ██║  ██║██╔══╝  ██║     ██║   ██║██║╚██╔╝██║██╔═══╝ ██╔═══╝ ██║  ██║██╔══██╗██║   ██║
 # ██████╔╝███████╗╚██████╗╚██████╔╝██║ ╚═╝ ██║██║     ███████╗██████╔╝██████╔╝╚██████╔╝
 # ╚═════╝ ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚══════╝╚═════╝ ╚═════╝  ╚═════╝
-#                         Unified LibBS Server
+#                         Unified DecLib Server
 #
-# A unified decompiler server using libbs DecompilerInterface.
+# A unified decompiler server using declib DecompilerInterface.
 # Works across IDA, Binary Ninja, Ghidra (via pyhidra), and angr.
 #
 
@@ -15,8 +15,8 @@ from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 from typing import Dict, Optional, Tuple, Set
 import sys
 
-from libbs.api import DecompilerInterface
-from libbs.artifacts import (
+from declib.api import DecompilerInterface
+from declib.artifacts import (
     FunctionHeader, StackVariable, Comment, GlobalVariable, Struct, Decompilation
 )
 
@@ -29,7 +29,7 @@ class DecompilationCache:
     """
     Cache decompilations with inverted line maps for O(1) address lookup.
 
-    The libbs line_map provides: line_num -> Set[addresses_on_that_line]
+    The declib line_map provides: line_num -> Set[addresses_on_that_line]
     We invert this to: address -> (func_addr, line_num) for fast curr_line lookup.
     """
 
@@ -103,11 +103,11 @@ class DecompilationCache:
         self._structs = None
 
 
-class LibBSDecompilerServer:
+class DecLibDecompilerServer:
     """
-    XML-RPC server using libbs DecompilerInterface internally.
+    XML-RPC server using declib DecompilerInterface internally.
 
-    Provides the same API as the original d2d servers but uses libbs
+    Provides the same API as the original d2d servers but uses declib
     for unified decompiler access across IDA, Binary Ninja, Ghidra, and angr.
     """
 
@@ -134,7 +134,7 @@ class LibBSDecompilerServer:
         self.global_vars()
 
     def _register_artifact_callbacks(self):
-        """Register libbs artifact change callbacks for cache invalidation."""
+        """Register declib artifact change callbacks for cache invalidation."""
         # Function header changes -> invalidate that function's cache
         self.deci.artifact_change_callbacks[FunctionHeader].append(
             lambda fh, **kw: self.cache.invalidate_function(fh.addr)
@@ -188,7 +188,7 @@ class LibBSDecompilerServer:
     def rebase_addr(self, addr: int, down: bool = False) -> int:
         """
         Convert between GDB client addresses and decompiler-internal addresses
-        using the libbs art_lifter for correct cross-decompiler support.
+        using the declib art_lifter for correct cross-decompiler support.
 
         Args:
             addr: The address to convert.

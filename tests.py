@@ -19,10 +19,10 @@ import unittest
 import xmlrpc.client
 from pathlib import Path
 
-from libbs.api import DecompilerInterface
-from libbs.decompilers import GHIDRA_DECOMPILER, IDA_DECOMPILER
+from declib.api import DecompilerInterface
+from declib.decompilers import GHIDRA_DECOMPILER, IDA_DECOMPILER
 
-from decomp2dbg.server import LibBSDecompilerServer
+from decomp2dbg.server import DecLibDecompilerServer
 
 REPO_ROOT = Path(__file__).resolve().parent
 FAUXWARE_PATH = REPO_ROOT / "testing" / "binaries" / "fauxware"
@@ -49,7 +49,7 @@ class _DecompilerTestBase(unittest.TestCase):
     Base class for decompiler integration tests.
 
     Subclasses must set:
-        DECOMPILER      — libbs decompiler constant (e.g. "ghidra", "ida")
+        DECOMPILER      — declib decompiler constant (e.g. "ghidra", "ida")
         DECOMPILER_NAME — human-readable name for log messages
         DISCOVER_KWARGS — extra kwargs passed to DecompilerInterface.discover()
         START_XMLRPC    — if False, skip the XML-RPC listener
@@ -89,7 +89,7 @@ class _DecompilerTestBase(unittest.TestCase):
 
         cls.deci = DecompilerInterface.discover(**discover_kwargs)
 
-        cls.server = LibBSDecompilerServer(
+        cls.server = DecLibDecompilerServer(
             deci=cls.deci, host="localhost", port=cls.port
         )
 
