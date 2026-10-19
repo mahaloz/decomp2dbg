@@ -23,6 +23,7 @@ class GDBDecompilerClient(DecompilerClient):
         self.symbol_mapper = SymbolMapper()
         self._is_pie = None
         self._lvar_bptr = None
+        self._last_synced_syms = None
 
     @property
     @lru_cache()
@@ -47,6 +48,7 @@ class GDBDecompilerClient(DecompilerClient):
         return corrected_addr
 
     def decompiler_connected(self):
+        self._last_synced_syms = None
         self.gdb_client.on_decompiler_connected(self.name)
 
     def decompiler_disconnected(self):
@@ -77,13 +79,20 @@ class GDBDecompilerClient(DecompilerClient):
 
             syms_to_add.append((clean_name, int(addr, 0), "object", global_var_size))
 
+        # rebuilding the symbol file is expensive (gcc + objcopy), so skip it when nothing changed
+        sync_key = (self.symbol_mapper.text_base_addr, tuple(syms_to_add))
+        if sync_key == self._last_synced_syms:
+            return True
+
         try:
-            self.symbol_mapper.add_native_symbols(syms_to_add)
+            if not self.symbol_mapper.add_native_symbols(syms_to_add):
+                return False
         except Exception as e:
             err(f"Failed to set symbols natively: {e}")
             self.native_sym_support = False
             return False
 
+        self._last_synced_syms = sync_key
         return True
 
     def update_global_vars(self):

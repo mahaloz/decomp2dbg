@@ -389,6 +389,39 @@ class TestGDBIntegrationGhidra(_DecompilerTestBase):
         self.assertIsNone(cache._global_vars)
         self.assertIsNone(cache._structs)
 
+    def test_stepping_reuses_cached_function(self):
+        """Stepping through a decompiled function must not decompile it again."""
+        proxy = xmlrpc.client.ServerProxy(f"http://localhost:{self.port}")
+        self.server.cache.invalidate_all()
+
+        calls = []
+        orig_decompile = self.deci.decompile
+        functions = self.deci.functions
+        orig_get_function = functions._artifact_getter
+
+        def counting_decompile(*args, **kwargs):
+            calls.append("decompile")
+            return orig_decompile(*args, **kwargs)
+
+        def counting_get_function(*args, **kwargs):
+            calls.append("get_function")
+            return orig_get_function(*args, **kwargs)
+
+        self.deci.decompile = counting_decompile
+        functions._artifact_getter = counting_get_function
+        try:
+            for addr in [FAUXWARE_MAIN_ADDR, 0x400721, 0x400725, 0x400739, 0x400750]:
+                result = proxy.decompile(addr)
+                self.assertEqual(result["func_name"], "main")
+                self.assertIsNotNone(result["curr_line"])
+                proxy.function_data(addr)
+        finally:
+            del self.deci.decompile
+            functions._artifact_getter = orig_get_function
+
+        self.assertEqual(calls.count("decompile"), 1, calls)
+        self.assertEqual(calls.count("get_function"), 1, calls)
+
     def test_rebase_addr_round_trip(self):
         server = self.server
 
