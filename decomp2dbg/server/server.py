@@ -12,7 +12,8 @@
 #
 
 from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
-from typing import Dict, Optional, Tuple, Set
+from typing import Dict, List, Optional, Tuple, Set
+import bisect
 import sys
 
 from declib.api import DecompilerInterface
@@ -42,6 +43,11 @@ class DecompilationCache:
         self._function_headers: Optional[Dict] = None
         self._global_vars: Optional[Dict] = None
         self._structs: Optional[Dict] = None
+        # func_addr -> function_data API response
+        self._function_data: Dict[int, dict] = {}
+        # sorted (start, end, name) of every function, for containing-function lookup
+        self._function_ranges: Optional[List[Tuple[int, int, str]]] = None
+        self._function_starts: List[int] = []
 
     def _build_addr_to_line_index(self, func_addr: int, line_map: Dict[int, Set[int]]):
         """Build the inverted index from addresses to line numbers."""
@@ -57,6 +63,32 @@ class DecompilationCache:
     def get_line_for_addr(self, addr: int) -> Optional[Tuple[int, int]]:
         """Get (func_addr, line_num) for a given address, or None if not cached."""
         return self._addr_to_line.get(addr)
+
+    def set_line_for_addr(self, addr: int, func_addr: int, line_num: int):
+        """Remember the line resolved for an address not directly in the line map."""
+        self._addr_to_line[int(addr)] = (int(func_addr), int(line_num))
+
+    def get_function_data(self, func_addr: int) -> Optional[dict]:
+        return self._function_data.get(func_addr)
+
+    def store_function_data(self, func_addr: int, data: dict):
+        self._function_data[func_addr] = data
+
+    def store_function_ranges(self, ranges: List[Tuple[int, int, str]]):
+        self._function_ranges = sorted(ranges)
+        self._function_starts = [start for start, _, _ in self._function_ranges]
+
+    def get_containing_function(self, addr: int) -> Optional[Tuple[int, str]]:
+        """Get (func_addr, func_name) of the function containing addr, or None."""
+        if not self._function_ranges:
+            return None
+        idx = bisect.bisect_right(self._function_starts, addr) - 1
+        if idx < 0:
+            return None
+        start, end, name = self._function_ranges[idx]
+        if start <= addr < end:
+            return start, name
+        return None
 
     def get_decompilation(self, func_addr: int) -> Optional[Decompilation]:
         """Get cached decompilation for a function address."""
@@ -79,12 +111,15 @@ class DecompilationCache:
             for addr in addrs_to_remove:
                 del self._addr_to_line[addr]
             del self._decompilations[func_addr]
+        self._function_data.pop(func_addr, None)
         # Also invalidate function headers since function may have changed
-        self._function_headers = None
+        self.invalidate_function_headers()
 
     def invalidate_function_headers(self):
         """Invalidate the function headers cache."""
         self._function_headers = None
+        self._function_ranges = None
+        self._function_starts = []
 
     def invalidate_global_vars(self):
         """Invalidate the global vars cache."""
@@ -98,7 +133,8 @@ class DecompilationCache:
         """Invalidate all caches."""
         self._decompilations.clear()
         self._addr_to_line.clear()
-        self._function_headers = None
+        self._function_data.clear()
+        self.invalidate_function_headers()
         self._global_vars = None
         self._structs = None
 
@@ -178,6 +214,24 @@ class DecLibDecompilerServer:
             # If we can't find the function, invalidate all decompilations
             self.cache.invalidate_all()
 
+    def _containing_function(self, addr: int) -> Optional[Tuple[int, str]]:
+        """
+        Get (func_addr, func_name) of the function containing addr, using a cached
+        range index so that no decompilation is needed to resolve it.
+        """
+        if self.cache._function_ranges is None:
+            ranges = []
+            try:
+                for func_addr, func in self.deci.functions.items():
+                    func_addr = int(func_addr)
+                    size = int(func.size) if func.size else 1
+                    ranges.append((func_addr, func_addr + size, str(func.name) if func.name else ""))
+            except Exception as e:
+                print(f"[decomp2dbg] Failed to build function ranges: {e}")
+            self.cache.store_function_ranges(ranges)
+
+        return self.cache.get_containing_function(addr)
+
     @property
     def base_addr(self) -> int:
         """Get the binary base address."""
@@ -229,64 +283,67 @@ class DecLibDecompilerServer:
 
         addr = self.rebase_addr(addr)
 
-        # Check if we have a cached line mapping for this exact address
+        # Resolve the containing function without decompiling, so that every address
+        # in an already decompiled function is served from the cache
+        containing = self._containing_function(addr)
         cached_line = self.cache.get_line_for_addr(addr)
-        if cached_line:
-            func_addr, line_num = cached_line
-            cached_decomp = self.cache.get_decompilation(func_addr)
-            if cached_decomp:
-                lines = cached_decomp.text.split('\n') if cached_decomp.text else None
-                resp["decompilation"] = lines
-                resp["curr_line"] = int(line_num)
-                # Get function name
-                try:
-                    func = self.deci.fast_get_function(func_addr)
-                    resp["func_name"] = str(func.name) if func else None
-                except (NotImplementedError, Exception):
-                    pass
+        if containing is not None:
+            func_addr, func_name = containing
+        elif cached_line is not None:
+            func_addr, func_name = cached_line[0], None
+        else:
+            func_addr, func_name = None, None
+
+        decomp = self.cache.get_decompilation(func_addr) if func_addr is not None else None
+        if decomp is None:
+            # Decompile with line mapping enabled
+            try:
+                decomp = self.deci.decompile(addr, map_lines=True)
+            except Exception as e:
+                print(f"[decomp2dbg] Decompilation failed: {e}")
                 return resp
 
-        # Decompile with line mapping enabled
-        try:
-            decomp = self.deci.decompile(addr, map_lines=True)
-        except Exception as e:
-            print(f"[decomp2dbg] Decompilation failed: {e}")
-            return resp
+            if decomp is None or decomp.text is None:
+                return resp
 
-        if decomp is None or decomp.text is None:
-            return resp
+            # Store in cache
+            self.cache.store_decompilation(decomp.addr, decomp)
+            cached_line = self.cache.get_line_for_addr(addr)
 
-        # Store in cache
-        self.cache.store_decompilation(decomp.addr, decomp)
+        func_addr = int(decomp.addr)
+        if containing is None or containing[0] != func_addr:
+            # the range index disagrees with the decompiler, trust the decompiler
+            func_name = None
 
         # Get decompilation lines
-        lines = decomp.text.split('\n')
-        resp["decompilation"] = lines
+        resp["decompilation"] = decomp.text.split('\n')
 
         # Find current line from line_map
         # Note: coerce to int() to avoid Java JInt objects from Ghidra/pyghidra
         # leaking into the XML-RPC response (which cannot marshal them).
-        if decomp.line_map:
-            for line_num, addrs in decomp.line_map.items():
-                if addrs and addr in addrs:
-                    resp["curr_line"] = int(line_num)
-                    break
-            else:
-                # Address not found directly, find closest
-                closest = self._find_closest_line(addr, decomp.line_map)
-                resp["curr_line"] = int(closest) if closest is not None else None
+        if cached_line is not None and cached_line[0] == func_addr:
+            resp["curr_line"] = int(cached_line[1])
+        elif decomp.line_map:
+            # Address not found directly, find closest and remember it
+            closest = self._find_closest_line(addr, decomp.line_map)
+            if closest is not None:
+                resp["curr_line"] = int(closest)
+                self.cache.set_line_for_addr(addr, func_addr, closest)
 
         # Get function name
-        try:
-            func = self.deci.fast_get_function(decomp.addr)
-            resp["func_name"] = str(func.name) if func else None
-        except (NotImplementedError, Exception):
-            # Fallback: try to get from functions dict
+        if func_name:
+            resp["func_name"] = func_name
+        else:
             try:
-                func = self.deci.functions.get(decomp.addr)
+                func = self.deci.fast_get_function(func_addr)
                 resp["func_name"] = str(func.name) if func else None
-            except Exception:
-                pass
+            except (NotImplementedError, Exception):
+                # Fallback: try to get from functions dict
+                try:
+                    func = self.deci.functions.get(func_addr)
+                    resp["func_name"] = str(func.name) if func else None
+                except Exception:
+                    pass
 
         return resp
 
@@ -320,10 +377,20 @@ class DecLibDecompilerServer:
         }
 
         addr = self.rebase_addr(addr)
+        containing = self._containing_function(addr)
+        func_addr = containing[0] if containing is not None else addr
+
+        cached = self.cache.get_function_data(func_addr)
+        if cached is not None:
+            return cached
 
         try:
-            # Get the function at this address
-            func = self.deci.functions.get(addr)
+            # Get the function at this address. Avoid functions.get(), which looks the
+            # function up twice (and decompiles twice on Ghidra).
+            try:
+                func = self.deci.functions[func_addr]
+            except KeyError:
+                func = None
             if func is None:
                 # Try to find function containing this address
                 func = self.deci.get_func_containing(addr)
@@ -355,7 +422,9 @@ class DecLibDecompilerServer:
 
         except Exception as e:
             print(f"[decomp2dbg] function_data failed: {e}")
+            return resp
 
+        self.cache.store_function_data(func_addr, resp)
         return resp
 
     def function_headers(self) -> dict:
